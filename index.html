@@ -252,7 +252,11 @@ function redrawEdges() {
 // ─── 화면 스케일 (모바일 전체화면 맞춤) ──────────────────
 let gameScale = 1;
 function resizeGame() {
-  const s = Math.min(window.innerWidth * 0.96 / 480, window.innerHeight * 0.96 / 640);
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+                || window.innerWidth < 600;
+  const s = isMobile
+    ? Math.min(window.innerWidth * 0.96 / 480, window.innerHeight * 0.96 / 640)
+    : 1; // PC는 고정 480×640
   gameScale = s;
   document.getElementById('game-wrapper').style.transform = `scale(${s})`;
 }
