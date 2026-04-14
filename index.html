@@ -272,7 +272,7 @@ let projectiles    = [];   // 발사체 풀
 let lastPctMile    = 0;    // 마지막으로 발사체를 추가한 %
 
 // ─── 낙하 연출 ──────────────────────────────────────
-const DROP_DURATION = 520; // ms
+const DROP_DURATION = 676; // ms  (520 × 1.3 — 낙하 속도 -30%)
 let drop = { active: false, startTime: 0, fromY: -60, toY: 0 };
 let impactTime = -9999; // 착지 시각
 let isMoving   = false; // 이동 중 여부 (망치질 모션용)
@@ -302,6 +302,7 @@ document.addEventListener('keyup', e => {
 const joyBase  = document.getElementById('joystick');
 const joyKnob  = document.getElementById('joystick-knob');
 const JOY_R    = 28; // 노브 최대 이동 반경(px)
+let knobCurX = 0, knobCurY = 0; // 노브 현재 보간 위치
 const joy      = { x: 0, y: 0 };
 let   joyTouchId = null;
 
@@ -1387,21 +1388,27 @@ function loop(now) {
   const tb = document.getElementById('timer-box');
   tb.style.color = wPct > 70 ? '#f55' : wPct > 40 ? '#fa0' : '#fff';
 
-  // 키보드 입력 기반 노브 위치 반영 (터치 중이 아닐 때)
+  // 노브 위치 부드럽게 보간
   if (joyTouchId === null) {
     let kdx = 0, kdy = 0;
     if (K.up)    kdy -= 1;
     if (K.down)  kdy += 1;
     if (K.left)  kdx -= 1;
     if (K.right) kdx += 1;
+    let targetX = 0, targetY = 0;
     if (kdx !== 0 || kdy !== 0) {
       const klen = Math.hypot(kdx, kdy);
-      const ox = (kdx / klen) * JOY_R;
-      const oy = (kdy / klen) * JOY_R;
-      joyKnob.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
-    } else {
-      joyKnob.style.transform = 'translate(-50%, -50%)';
+      targetX = (kdx / klen) * JOY_R;
+      targetY = (kdy / klen) * JOY_R;
     }
+    const LERP = 0.18;
+    knobCurX += (targetX - knobCurX) * LERP;
+    knobCurY += (targetY - knobCurY) * LERP;
+    joyKnob.style.transform = `translate(calc(-50% + ${knobCurX.toFixed(2)}px), calc(-50% + ${knobCurY.toFixed(2)}px))`;
+  } else {
+    // 터치 중일 때도 보간 상태를 현재 노브 위치와 동기화
+    knobCurX = joy.x * JOY_R;
+    knobCurY = joy.y * JOY_R;
   }
 
   requestAnimationFrame(loop);
