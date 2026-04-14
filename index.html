@@ -306,60 +306,79 @@ document.addEventListener('keyup', e => {
   if (['d','D','ArrowRight'].includes(e.key)) K.right = false;
 });
 
-// ── 조이스틱 ─────────────────────────────────────────
+// ── 조이스틱 (표시용) + 화면 전체 드래그 입력 ────────────
 const joyBase  = document.getElementById('joystick');
 const joyKnob  = document.getElementById('joystick-knob');
 const JOY_R    = 28; // 노브 최대 이동 반경(px)
-let knobCurX = 0, knobCurY = 0; // 노브 현재 보간 위치
+const DRAG_MAX = 55; // 이 픽셀 이상 드래그하면 최대 속도 (스크린 px)
 const joy      = { x: 0, y: 0 };
-let   joyTouchId = null;
+let   joyTouchId  = null;
+let   dragOrigin  = null; // 드래그 시작 지점
 
-function joyCenter() {
-  const r = joyBase.getBoundingClientRect();
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-}
-function joyUpdate(cx, cy) {
-  const c  = joyCenter();
-  // 스크린 좌표 → 게임 내부 좌표로 역변환 (스케일 보정)
-  let ox = (cx - c.x) / gameScale, oy = (cy - c.y) / gameScale;
-  const d  = Math.hypot(ox, oy);
-  if (d > JOY_R) { ox = ox / d * JOY_R; oy = oy / d * JOY_R; }
-  joy.x = ox / JOY_R;
-  joy.y = oy / JOY_R;
+function joySetKnob(nx, ny) {
+  // nx, ny: -1~1 방향값 → 노브 위치 반영
+  const ox = nx * JOY_R, oy = ny * JOY_R;
   joyKnob.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
 }
 function joyReset() {
   joyTouchId = null;
+  dragOrigin  = null;
   joy.x = 0; joy.y = 0;
   joyKnob.style.transform = 'translate(-50%, -50%)';
 }
-joyBase.addEventListener('touchstart', e => {
+
+// 화면 전체 터치: 어디서 드래그해도 그 방향으로 이동
+document.addEventListener('touchstart', e => {
   e.preventDefault();
   if (joyTouchId !== null) return;
   const t = e.changedTouches[0];
   joyTouchId = t.identifier;
-  joyUpdate(t.clientX, t.clientY);
+  dragOrigin  = { x: t.clientX, y: t.clientY };
+  joy.x = 0; joy.y = 0;
+  joySetKnob(0, 0);
 }, { passive: false });
-joyBase.addEventListener('touchmove', e => {
+
+document.addEventListener('touchmove', e => {
   e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joyTouchId) continue;
+    const dx = t.clientX - dragOrigin.x;
+    const dy = t.clientY - dragOrigin.y;
+    const d  = Math.hypot(dx, dy);
+    if (d === 0) break;
+    const ratio = Math.min(d / DRAG_MAX, 1); // 0~1 아날로그
+    joy.x = (dx / d) * ratio;
+    joy.y = (dy / d) * ratio;
+    joySetKnob(joy.x, joy.y);
+    break;
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', e => {
   for (const t of e.changedTouches)
-    if (t.identifier === joyTouchId) { joyUpdate(t.clientX, t.clientY); break; }
+    if (t.identifier === joyTouchId) { joyReset(); break; }
 }, { passive: false });
-joyBase.addEventListener('touchend',   e => {
-  for (const t of e.changedTouches) if (t.identifier === joyTouchId) { joyReset(); break; }
-}, { passive: false });
-joyBase.addEventListener('touchcancel', joyReset, { passive: false });
+document.addEventListener('touchcancel', joyReset, { passive: false });
 
 // ── 마우스 드래그(PC)로 조이스틱 조작 ─────────────────
 let joyMouseActive = false;
 joyBase.addEventListener('mousedown', e => {
   joyMouseActive = true;
-  joyUpdate(e.clientX, e.clientY);
+  dragOrigin = { x: e.clientX, y: e.clientY };
+  joy.x = 0; joy.y = 0;
+  joySetKnob(0, 0);
   e.preventDefault();
 });
 document.addEventListener('mousemove', e => {
   if (!joyMouseActive) return;
-  joyUpdate(e.clientX, e.clientY);
+  const dx = e.clientX - dragOrigin.x;
+  const dy = e.clientY - dragOrigin.y;
+  const d  = Math.hypot(dx, dy);
+  if (d === 0) return;
+  const ratio = Math.min(d / DRAG_MAX, 1);
+  joy.x = (dx / d) * ratio;
+  joy.y = (dy / d) * ratio;
+  joySetKnob(joy.x, joy.y);
 });
 document.addEventListener('mouseup', () => {
   if (joyMouseActive) { joyMouseActive = false; joyReset(); }
