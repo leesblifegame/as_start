@@ -8,9 +8,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100vw;
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
@@ -18,10 +16,10 @@
     font-family: Arial, sans-serif;
   }
   #game-wrapper {
-    position: relative;
+    position: absolute;
     width: 480px;
     height: 640px;
-    transform-origin: center center;
+    transform-origin: top left;
   }
   /* 영상은 숨기고 캔버스에 직접 그림 */
   #bg-video {
@@ -254,11 +252,17 @@ let gameScale = 1;
 function resizeGame() {
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
                 || window.innerWidth < 600;
+  const vw = window.innerWidth, vh = window.innerHeight;
   const s = isMobile
-    ? Math.min(window.innerWidth * 0.96 / 480, window.innerHeight * 0.96 / 640)
+    ? Math.min(vw * 0.96 / 480, vh * 0.96 / 640)
     : 1; // PC는 고정 480×640
   gameScale = s;
-  document.getElementById('game-wrapper').style.transform = `scale(${s})`;
+  const left = Math.round((vw - 480 * s) / 2);
+  const top  = Math.round((vh - 640 * s) / 2);
+  const el = document.getElementById('game-wrapper');
+  el.style.left      = left + 'px';
+  el.style.top       = top  + 'px';
+  el.style.transform = `scale(${s})`;
 }
 window.addEventListener('resize', resizeGame);
 window.addEventListener('orientationchange', () => setTimeout(resizeGame, 150));
