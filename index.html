@@ -6,11 +6,13 @@
 <title>살려주세요 - 구출 미니게임</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+  }
   body {
+    position: relative;
     background: #000;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
     overflow: hidden;
     touch-action: none;
     font-family: Arial, sans-serif;
@@ -250,12 +252,13 @@ function redrawEdges() {
 // ─── 화면 스케일 (모바일 전체화면 맞춤) ──────────────────
 let gameScale = 1;
 function resizeGame() {
+  const vw = document.documentElement.clientWidth  || window.innerWidth;
+  const vh = document.documentElement.clientHeight || window.innerHeight;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-                || window.innerWidth < 600;
-  const vw = window.innerWidth, vh = window.innerHeight;
+                || vw < 600;
   const s = isMobile
     ? Math.min(vw * 0.96 / 480, vh * 0.96 / 640)
-    : 1; // PC는 고정 480×640
+    : 1;
   gameScale = s;
   const left = Math.round((vw - 480 * s) / 2);
   const top  = Math.round((vh - 640 * s) / 2);
@@ -264,9 +267,10 @@ function resizeGame() {
   el.style.top       = top  + 'px';
   el.style.transform = `scale(${s})`;
 }
-window.addEventListener('resize', resizeGame);
-window.addEventListener('orientationchange', () => setTimeout(resizeGame, 150));
-resizeGame();
+resizeGame();                                                     // 즉시 실행
+window.addEventListener('load',              resizeGame);         // 리소스 로드 후 재실행
+window.addEventListener('resize',            resizeGame);
+window.addEventListener('orientationchange', () => setTimeout(resizeGame, 200));
 
 // ─── 상태 ───────────────────────────────────────────
 let state       = 'idle';
