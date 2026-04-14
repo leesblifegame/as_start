@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/Git/cmd//**)",
+      "Read(//c/Program Files/TortoiseGit/bin//**)"
+    ]
+  }
+}

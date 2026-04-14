@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>살려주세요 - 구출 미니게임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    font-family: Arial, sans-serif;
+  }
+  #game-wrapper {
+    position: relative;
+    width: 480px;
+    height: 640px;
+  }
+  /* 영상은 숨기고 캔버스에 직접 그림 */
+  #bg-video {
+    position: absolute;
+    visibility: hidden;
+    width: 1px; height: 1px;
+  }
+  #game-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 1;
+    cursor: none;
+  }
+  /* 조이스틱 */
+  #joystick {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 2px solid rgba(255,255,255,0.22);
+    z-index: 3;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  #joystick-knob {
+    position: absolute;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.30);
+    border: 2px solid rgba(255,255,255,0.65);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  /* 상태창 UI */
+  #ui {
+    position: absolute;
+    top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+    padding: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #status-panel {
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(100,200,255,0.25);
+    border-radius: 10px;
+    padding: 5px 14px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+  }
+  .stat-label {
+    font-size: 9px;
+    color: rgba(160,220,255,0.65);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-divider {
+    width: 1px; height: 28px;
+    background: rgba(100,200,255,0.2);
+  }
+  /* Overlay (승패 결과만) */
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.78);
+    color: #fff;
+  }
+  #overlay h1 { font-size: 2.1em; margin-bottom: 10px; }
+  #overlay p  { font-size: 0.95em; margin-bottom: 22px; color: #adf; text-align: center; padding: 0 24px; line-height: 1.6; }
+  #overlay button {
+    padding: 11px 34px;
+    font-size: 1.05em;
+    background: #1af;
+    border: none;
+    border-radius: 10px;
+    color: #000;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  #overlay button:hover { background: #0cf; }
+  @keyframes btn-glow {
+    0%   { box-shadow: 0 0  6px 1px rgba(0,200,255,0.4), 0 0 0 0 rgba(0,200,255,0); border-color: rgba(100,200,255,0.4); }
+    50%  { box-shadow: 0 0 18px 4px rgba(0,200,255,0.9), 0 0 32px 8px rgba(0,180,255,0.4); border-color: rgba(0,220,255,1); }
+    100% { box-shadow: 0 0  6px 1px rgba(0,200,255,0.4), 0 0 0 0 rgba(0,200,255,0); border-color: rgba(100,200,255,0.4); }
+  }
+  .btn-highlight {
+    animation: btn-glow 1.4s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <video id="bg-video" autoplay loop muted playsinline>
+    <source src="-9019397523585239240.MP4" type="video/mp4">
+  </video>
+
+  <canvas id="game-canvas" width="480" height="640"></canvas>
+
+  <div id="joystick">
+    <div id="joystick-knob"></div>
+  </div>
+
+  <div id="ui">
+    <div id="status-panel">
+      <div class="stat-item">
+        <span class="stat-label">목표</span>
+        <span class="stat-value"><span id="pct">0</span>%&thinsp;/&thinsp;60%</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item" id="timer-box">
+        <span class="stat-label">수위</span>
+        <span class="stat-value"><span id="water-pct">0</span>%</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay"></div>
+</div>
+
+<script>
+const canvas  = document.getElementById('game-canvas');
+const ctx     = canvas.getContext('2d');
+const bgVideo = document.getElementById('bg-video');
+const W = canvas.width, H = canvas.height;
+
+// ─── 상수 ───────────────────────────────────────────
+const TARGET_PCT      = 0.60;
+const WATER_DURATION  = 100000;
+const CELL            = 4;
+const COLS            = (W / CELL) | 0;
+const ROWS            = (H / CELL) | 0;
+const PLAYER_SPEED    = 2.8;
+const DEBRIS_BASE_SPD = PLAYER_SPEED * 2;
+
+// ─── 오프스크린 캔버스 (균열 + 경계 실금) ────────────
+const crackCanvas = document.createElement('canvas');
+crackCanvas.width = W; crackCanvas.height = H;
+const crackCtx = crackCanvas.getContext('2d');
+
+const edgeCanvas = document.createElement('canvas');
+edgeCanvas.width = W; edgeCanvas.height = H;
+const edgeCtx = edgeCanvas.getContext('2d');
+
+// 위치 기반 시드 난수 (경계선 일관된 지그재그용)
+function seededRand(seed) {
+  seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b);
+  return ((seed ^ (seed >>> 16)) >>> 0) / 0x100000000;
+}
+
+function redrawEdges() {
+  edgeCtx.clearRect(0, 0, W, H);
+  edgeCtx.save();
+  edgeCtx.strokeStyle = 'rgba(200, 232, 255, 0.90)';
+  edgeCtx.lineWidth   = 2.5;
+  edgeCtx.lineCap     = 'square';
+  edgeCtx.shadowColor = 'rgba(100, 200, 255, 0.55)';
+  edgeCtx.shadowBlur  = 5;
+
+  edgeCtx.beginPath();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const here = !!claimedGrid[r * COLS + c];
+
+      // 오른쪽 경계 (수직선)
+      if (c < COLS - 1 && here !== !!claimedGrid[r * COLS + c + 1]) {
+        const x = (c + 1) * CELL;
+        edgeCtx.moveTo(x, r * CELL);
+        edgeCtx.lineTo(x, (r + 1) * CELL);
+      }
+
+      // 아래 경계 (수평선)
+      if (r < ROWS - 1 && here !== !!claimedGrid[(r + 1) * COLS + c]) {
+        const y = (r + 1) * CELL;
+        edgeCtx.moveTo(c * CELL, y);
+        edgeCtx.lineTo((c + 1) * CELL, y);
+      }
+    }
+  }
+  edgeCtx.stroke();
+  edgeCtx.restore();
+}
+
+// ─── 상태 ───────────────────────────────────────────
+let state       = 'idle';
+let startTime   = 0;
+let waterY      = H;
+let claimedGrid, claimedCount;
+let drawingPath = [], isDrawing = false;
+let playerX, playerY, lastSafeX, lastSafeY;
+let debris = [];
+let projectiles    = [];   // 발사체 풀
+let lastPctMile    = 0;    // 마지막으로 발사체를 추가한 %
+
+// ─── 낙하 연출 ──────────────────────────────────────
+const DROP_DURATION = 520; // ms
+let drop = { active: false, startTime: 0, fromY: -60, toY: 0 };
+let impactTime = -9999; // 착지 시각
+
+// ─── 키 입력 ────────────────────────────────────────
+const K  = { up:false, down:false, left:false, right:false };
+const DP = { up:false, down:false, left:false, right:false };
+
+let cheatBuffer = '';
+document.addEventListener('keydown', e => {
+  if (['w','W','ArrowUp'].includes(e.key))    { K.up    = true; e.preventDefault(); }
+  if (['s','S','ArrowDown'].includes(e.key))  { K.down  = true; e.preventDefault(); }
+  if (['a','A','ArrowLeft'].includes(e.key))  { K.left  = true; e.preventDefault(); }
+  if (['d','D','ArrowRight'].includes(e.key)) { K.right = true; e.preventDefault(); }
+  cheatBuffer += e.key;
+  if (cheatBuffer.length > 5) cheatBuffer = cheatBuffer.slice(-5);
+  if (cheatBuffer === '12345' && state === 'playing') { endGame('win'); cheatBuffer = ''; }
+});
+document.addEventListener('keyup', e => {
+  if (['w','W','ArrowUp'].includes(e.key))    K.up    = false;
+  if (['s','S','ArrowDown'].includes(e.key))  K.down  = false;
+  if (['a','A','ArrowLeft'].includes(e.key))  K.left  = false;
+  if (['d','D','ArrowRight'].includes(e.key)) K.right = false;
+});
+
+// ── 조이스틱 ─────────────────────────────────────────
+const joyBase  = document.getElementById('joystick');
+const joyKnob  = document.getElementById('joystick-knob');
+const JOY_R    = 28; // 노브 최대 이동 반경(px)
+const joy      = { x: 0, y: 0 };
+let   joyTouchId = null;
+
+function joyCenter() {
+  const r = joyBase.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+function joyUpdate(cx, cy) {
+  const c  = joyCenter();
+  let ox = cx - c.x, oy = cy - c.y;
+  const d  = Math.hypot(ox, oy);
+  if (d > JOY_R) { ox = ox / d * JOY_R; oy = oy / d * JOY_R; }
+  joy.x = ox / JOY_R;
+  joy.y = oy / JOY_R;
+  joyKnob.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
+}
+function joyReset() {
+  joyTouchId = null;
+  joy.x = 0; joy.y = 0;
+  joyKnob.style.transform = 'translate(-50%, -50%)';
+}
+joyBase.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (joyTouchId !== null) return;
+  const t = e.changedTouches[0];
+  joyTouchId = t.identifier;
+  joyUpdate(t.clientX, t.clientY);
+}, { passive: false });
+joyBase.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches)
+    if (t.identifier === joyTouchId) { joyUpdate(t.clientX, t.clientY); break; }
+}, { passive: false });
+joyBase.addEventListener('touchend',   e => {
+  for (const t of e.changedTouches) if (t.identifier === joyTouchId) { joyReset(); break; }
+}, { passive: false });
+joyBase.addEventListener('touchcancel', joyReset, { passive: false });
+
+// ─── 초기화 ─────────────────────────────────────────
+function init() {
+  claimedGrid  = new Uint8Array(COLS * ROWS);
+  claimedCount = 0;
+  drawingPath  = [];
+  isDrawing    = false;
+  waterY       = H;
+  debris       = [];
+  projectiles  = [];
+  lastPctMile  = 0;
+  crackCtx.clearRect(0, 0, W, H);
+  edgeCtx.clearRect(0, 0, W, H);
+
+  // 시작 위치: 하단 중앙 (아래쪽 테두리)
+  // 바닥 테두리 row = ROWS-1, 해당 y 범위 = (ROWS-1)*CELL ~ ROWS*CELL
+  const startY  = (ROWS - 1) * CELL + CELL / 2; // row 159 정중앙 → 확실히 점령 영역
+  playerX   = W / 2;
+  playerY   = -60;          // 낙하 시작은 화면 위
+  lastSafeX = W / 2;
+  lastSafeY = startY;
+
+  // 테두리 점령
+  for (let c = 0; c < COLS; c++) { _claim(c, 0); _claim(c, ROWS-1); }
+  for (let r = 0; r < ROWS; r++) { _claim(0, r); _claim(COLS-1, r); }
+
+  startTime = performance.now();
+  state = 'playing';
+  syncDebrisCount();
+
+  // 낙하 연출 시작
+  drop.active    = true;
+  drop.startTime = performance.now();
+  drop.fromY     = -60;
+  drop.toY       = startY;
+  impactTime     = -9999;
+}
+
+function _claim(c, r) {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return;
+  const i = r * COLS + c;
+  if (!claimedGrid[i]) { claimedGrid[i] = 1; claimedCount++; }
+}
+
+function isClaimed(x, y) {
+  const c = (x / CELL) | 0, r = (y / CELL) | 0;
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return true;
+  return !!claimedGrid[r * COLS + c];
+}
+
+// ─── 잔해 관리 (고정 5마리) ─────────────────────────
+function syncDebrisCount() {
+  while (debris.length < 5) spawnDebris();
+}
+function spawnDebris() {
+  let x, y, tries = 0;
+  do {
+    x = 30 + Math.random() * (W - 60);
+    y = 30 + Math.random() * (H * 0.8);
+    tries++;
+  } while (isClaimed(x, y) && tries < 60);
+  const angle = Math.random() * Math.PI * 2;
+  const spd   = DEBRIS_BASE_SPD * (0.8 + Math.random() * 0.5);
+  debris.push({
+    x, y,
+    vx: Math.cos(angle) * spd,
+    vy: Math.sin(angle) * spd,
+    r: 13 + Math.random() * 8,
+    shape: Array.from({length: 8}, () => 0.6 + Math.random() * 0.4),
+    rot: Math.random() * Math.PI * 2,
+  });
+}
+
+// ─── 발사체 관리 ─────────────────────────────────────
+function spawnProjectile() {
+  const side  = Math.floor(Math.random() * 3); // 0=left 1=right 2=top
+  const spd   = 4.2 + Math.random() * 2.8;
+  const spread = (Math.random() - 0.5) * 0.35; // 약간 비스듬
+  let x, y, vx, vy;
+
+  if (side === 0) {        // 왼쪽 → 오른쪽
+    x = -14; y = 40 + Math.random() * (H - 80);
+    vx = spd * Math.cos(spread); vy = spd * Math.sin(spread);
+  } else if (side === 1) { // 오른쪽 → 왼쪽
+    x = W + 14; y = 40 + Math.random() * (H - 80);
+    vx = -spd * Math.cos(spread); vy = spd * Math.sin(spread);
+  } else {                 // 위 → 아래
+    x = 30 + Math.random() * (W - 60); y = -14;
+    vx = spd * Math.sin(spread); vy = spd * Math.cos(spread);
+  }
+
+  projectiles.push({ x, y, vx, vy, r: 5, trail: [] });
+}
+
+function updateProjectiles() {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    // 잔상 기록
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 10) p.trail.shift();
+
+    p.x += p.vx; p.y += p.vy;
+
+    // 화면 밖으로 나가면 반대편에서 재발사
+    if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20) {
+      projectiles.splice(i, 1);
+      spawnProjectile(); // 곧바로 새 발사체 보충
+    }
+  }
+}
+
+function drawProjectile(p, now) {
+  // 잔상
+  for (let i = 0; i < p.trail.length; i++) {
+    const t   = i / p.trail.length;
+    const tr  = p.trail[i];
+    ctx.beginPath();
+    ctx.arc(tr.x, tr.y, p.r * t * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 160, 30, ${t * 0.4})`;
+    ctx.fill();
+  }
+
+  // 본체 (뾰족한 총알 모양)
+  const speed = Math.hypot(p.vx, p.vy) || 1;
+  const nx = p.vx / speed, ny = p.vy / speed; // 진행 방향 단위벡터
+  const px = -ny, py = nx;                     // 수직 벡터
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(255, 180, 50, 0.8)';
+  ctx.shadowBlur  = 8;
+
+  ctx.beginPath();
+  ctx.moveTo(p.x + nx * p.r * 1.8,        p.y + ny * p.r * 1.8);        // 앞 뾰족
+  ctx.lineTo(p.x + px * p.r * 0.55 - nx * p.r * 1.0, p.y + py * p.r * 0.55 - ny * p.r * 1.0);
+  ctx.lineTo(p.x - nx * p.r * 0.8,        p.y - ny * p.r * 0.8);        // 뒤꼬리
+  ctx.lineTo(p.x - px * p.r * 0.55 - nx * p.r * 1.0, p.y - py * p.r * 0.55 - ny * p.r * 1.0);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(
+    p.x - nx * p.r, p.y - ny * p.r,
+    p.x + nx * p.r, p.y + ny * p.r
+  );
+  grad.addColorStop(0,   '#ff6a00');
+  grad.addColorStop(0.5, '#ffcc00');
+  grad.addColorStop(1,   '#fff8a0');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ─── 방탄유리 총알 충격 균열 생성 ────────────────────
+function addCracks(newCells) {
+  if (!newCells.length) return;
+  // 면적에 비례해서 충격 포인트 수 결정 (최소 1, 최대 4)
+  const numImpacts = Math.min(4, Math.max(1, Math.floor(newCells.length / 60)));
+
+  for (let n = 0; n < numImpacts; n++) {
+    const cell = newCells[(Math.random() * newCells.length) | 0];
+    const cx = cell.c * CELL + CELL / 2 + (Math.random() - 0.5) * CELL * 2;
+    const cy = cell.r * CELL + CELL / 2 + (Math.random() - 0.5) * CELL * 2;
+    const radius = 22 + Math.random() * 32;
+    drawBulletImpact(cx, cy, radius);
+  }
+}
+
+function drawBulletImpact(cx, cy, radius) {
+  crackCtx.save();
+  crackCtx.lineCap  = 'round';
+  crackCtx.lineJoin = 'round';
+
+  const numRadial  = 7 + Math.floor(Math.random() * 5); // 7~11개 방사 균열
+  const startAngle = Math.random() * Math.PI * 2;
+
+  // ── 방사 균열 ────────────────────────────────────
+  for (let i = 0; i < numRadial; i++) {
+    const baseAngle = startAngle + (i / numRadial) * Math.PI * 2;
+    const jitter    = (Math.random() - 0.5) * (Math.PI / numRadial) * 0.6;
+    const angle     = baseAngle + jitter;
+    const len       = radius * (0.65 + Math.random() * 0.55);
+
+    crackCtx.lineWidth   = 0.7 + Math.random() * 0.5;
+    crackCtx.strokeStyle = `rgba(225, 245, 255, ${0.65 + Math.random() * 0.2})`;
+    crackCtx.shadowColor = 'rgba(160, 220, 255, 0.5)';
+    crackCtx.shadowBlur  = 2;
+
+    // 약간 지그재그하는 방사선
+    let rx = cx, ry = cy, a = angle;
+    const steps = 3 + Math.floor(Math.random() * 3);
+    const sLen  = len / steps;
+
+    crackCtx.beginPath();
+    crackCtx.moveTo(rx + Math.cos(a) * 3, ry + Math.sin(a) * 3);
+    for (let s = 0; s < steps; s++) {
+      a  += (Math.random() - 0.5) * 0.22;
+      rx += Math.cos(a) * sLen;
+      ry += Math.sin(a) * sLen;
+      crackCtx.lineTo(rx, ry);
+    }
+    crackCtx.stroke();
+
+    // 끝에서 짧은 가지
+    if (Math.random() < 0.55) {
+      const bA = a + (Math.random() < 0.5 ? 0.35 : -0.35) + (Math.random()-0.5)*0.2;
+      const bL = len * (0.18 + Math.random() * 0.18);
+      crackCtx.lineWidth   *= 0.5;
+      crackCtx.strokeStyle = `rgba(215, 240, 255, 0.5)`;
+      crackCtx.beginPath();
+      crackCtx.moveTo(rx, ry);
+      crackCtx.lineTo(rx + Math.cos(bA) * bL, ry + Math.sin(bA) * bL);
+      crackCtx.stroke();
+    }
+  }
+
+  // ── 동심원 호 균열 (2~3겹) ───────────────────────
+  const numRings = 2 + Math.floor(Math.random() * 2);
+  for (let ring = 0; ring < numRings; ring++) {
+    const rr       = radius * (0.18 + ring * 0.28 + Math.random() * 0.08);
+    const arcA     = Math.random() * Math.PI * 2;
+    const arcSpan  = Math.PI * (0.35 + Math.random() * 1.0);
+
+    crackCtx.lineWidth   = 0.55 + Math.random() * 0.35;
+    crackCtx.strokeStyle = `rgba(220, 242, 255, ${0.45 + Math.random() * 0.25})`;
+    crackCtx.shadowBlur  = 1.5;
+
+    crackCtx.beginPath();
+    crackCtx.arc(cx, cy, rr, arcA, arcA + arcSpan);
+    crackCtx.stroke();
+
+    // 반대편 짧은 호 조각
+    if (Math.random() < 0.6) {
+      const arc2A = arcA + Math.PI + (Math.random() - 0.5) * 0.8;
+      crackCtx.beginPath();
+      crackCtx.arc(cx, cy, rr * (0.88 + Math.random() * 0.22),
+                   arc2A, arc2A + arcSpan * (0.3 + Math.random() * 0.4));
+      crackCtx.stroke();
+    }
+  }
+
+  // ── 충격 중심점 ──────────────────────────────────
+  crackCtx.shadowBlur = 4;
+  crackCtx.shadowColor = 'rgba(200, 230, 255, 0.8)';
+  crackCtx.fillStyle = 'rgba(230, 248, 255, 0.85)';
+  crackCtx.beginPath();
+  crackCtx.arc(cx, cy, 2.8, 0, Math.PI * 2);
+  crackCtx.fill();
+
+  // 중심 링
+  crackCtx.strokeStyle = 'rgba(200, 235, 255, 0.6)';
+  crackCtx.lineWidth   = 0.8;
+  crackCtx.beginPath();
+  crackCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+  crackCtx.stroke();
+
+  crackCtx.restore();
+}
+
+// ─── 플러드 필 ──────────────────────────────────────
+function floodFillAndClaim() {
+  const working = new Uint8Array(claimedGrid);
+  for (let i = 0; i < drawingPath.length - 1; i++) {
+    plotLine(drawingPath[i].x, drawingPath[i].y,
+             drawingPath[i+1].x, drawingPath[i+1].y, working);
+  }
+
+  const outside = new Uint8Array(COLS * ROWS);
+  const queue   = [];
+  const seed = (c, r) => {
+    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return;
+    const i = r * COLS + c;
+    if (!outside[i] && !working[i]) { outside[i] = 1; queue.push(i); }
+  };
+  debris.forEach(d => seed((d.x / CELL) | 0, (d.y / CELL) | 0));
+  for (let c = 0; c < COLS; c++) { seed(c, 0); seed(c, ROWS-1); }
+  for (let r = 0; r < ROWS; r++) { seed(0, r); seed(COLS-1, r); }
+
+  for (let qi = 0; qi < queue.length; qi++) {
+    const i = queue[qi];
+    const c = i % COLS, r = (i / COLS) | 0;
+    if (c > 0)      seed(c-1, r);
+    if (c < COLS-1) seed(c+1, r);
+    if (r > 0)      seed(c, r-1);
+    if (r < ROWS-1) seed(c, r+1);
+  }
+
+  const newCells = [];
+  for (let i = 0; i < COLS * ROWS; i++) {
+    if (!outside[i] && !claimedGrid[i]) {
+      claimedGrid[i] = 1;
+      claimedCount++;
+      newCells.push({ c: i % COLS, r: (i / COLS) | 0 });
+    }
+  }
+  addCracks(newCells);
+  redrawEdges();
+}
+
+function plotLine(x1, y1, x2, y2, grid) {
+  let c = (x1/CELL)|0, r = (y1/CELL)|0;
+  const c2 = (x2/CELL)|0, r2 = (y2/CELL)|0;
+  const dc = Math.abs(c2-c), dr = Math.abs(r2-r);
+  const sc = c<c2?1:-1, sr = r<r2?1:-1;
+  let err = dc - dr;
+  while (true) {
+    if (c>=0&&c<COLS&&r>=0&&r<ROWS) grid[r*COLS+c] = 1;
+    if (c===c2 && r===r2) break;
+    const e2 = err * 2;
+    if (e2 > -dr) { err -= dr; c += sc; }
+    if (e2 <  dc) { err += dc; r += sr; }
+  }
+}
+
+// ─── 충돌 ───────────────────────────────────────────
+function playerHitsDebris(px, py) {
+  for (const d of debris)
+    if (Math.hypot(d.x - px, d.y - py) < d.r + 9) return true;
+  return false;
+}
+function pathHitsDebris() {
+  if (drawingPath.length < 2) return false;
+  for (const d of debris)
+    for (let i = 0; i < drawingPath.length - 1; i++)
+      if (segDist(drawingPath[i], drawingPath[i+1], d.x, d.y) < d.r + 4) return true;
+  return false;
+}
+function segDist(a, b, cx, cy) {
+  const dx = b.x-a.x, dy = b.y-a.y;
+  const len2 = dx*dx+dy*dy;
+  if (!len2) return Math.hypot(cx-a.x, cy-a.y);
+  const t = Math.max(0, Math.min(1, ((cx-a.x)*dx+(cy-a.y)*dy)/len2));
+  return Math.hypot(cx-(a.x+t*dx), cy-(a.y+t*dy));
+}
+
+// ─── 업데이트 ────────────────────────────────────────
+// 낙하 이징: 중력 가속 + 착지 반동
+function dropEase(t) {
+  if (t < 0.82) {
+    // 가속 낙하 (easeInQuad)
+    const s = t / 0.82;
+    return s * s * 0.82;
+  } else {
+    // 착지 반동 (살짝 튀어오름 후 안착)
+    const s = (t - 0.82) / 0.18;
+    return 0.82 + 0.18 * (1 - Math.pow(1 - s, 2)) - Math.sin(s * Math.PI) * 0.025;
+  }
+}
+
+function update(now) {
+  if (state !== 'playing') return;
+
+  const elapsed = now - startTime;
+  waterY = H * Math.max(0, 1 - elapsed / WATER_DURATION);
+
+  // ── 낙하 연출 진행 중 ──────────────────────────────
+  if (drop.active) {
+    const t = Math.min((now - drop.startTime) / DROP_DURATION, 1);
+    playerY = drop.fromY + (drop.toY - drop.fromY) * dropEase(t);
+    if (t >= 1) {
+      playerY    = drop.toY;
+      drop.active = false;
+      impactTime  = now;   // 착지 시각 기록
+    }
+    // 낙하 중에도 잔해·물은 업데이트
+    updateDebris();
+    return;
+  }
+
+  // 이동 (수위 제한 없음 – 수조 안에서도 이동 가능)
+  let dx = 0, dy = 0;
+  if (K.up    || DP.up)    dy -= 1;
+  if (K.down  || DP.down)  dy += 1;
+  if (K.left  || DP.left)  dx -= 1;
+  if (K.right || DP.right) dx += 1;
+  dx += joy.x;
+  dy += joy.y;
+
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy) || 1;
+    dx = dx / len * PLAYER_SPEED;
+    dy = dy / len * PLAYER_SPEED;
+
+    const nx = Math.max(2, Math.min(W-2, playerX + dx));
+    const ny = Math.max(2, Math.min(H-2, playerY + dy));
+
+    const wasOnSafe = isClaimed(playerX, playerY);
+    const nowOnSafe = isClaimed(nx, ny);
+
+    if (wasOnSafe && !nowOnSafe && !isDrawing) {
+      isDrawing   = true;
+      drawingPath = [{ x: playerX, y: playerY }];
+    }
+
+    if (isDrawing) {
+      const last = drawingPath[drawingPath.length - 1];
+      if (Math.hypot(nx - last.x, ny - last.y) >= 3)
+        drawingPath.push({ x: nx, y: ny });
+
+      if (playerHitsDebris(nx, ny) || pathHitsDebris()) {
+        cancelDraw();
+        playerX = lastSafeX; playerY = lastSafeY;
+        return;
+      }
+
+      if (nowOnSafe && drawingPath.length > 4) {
+        floodFillAndClaim();
+        isDrawing   = false;
+        drawingPath = [];
+        syncDebrisCount();
+        lastSafeX = nx; lastSafeY = ny;
+      }
+    } else if (nowOnSafe) {
+      lastSafeX = nx; lastSafeY = ny;
+    }
+
+    playerX = nx; playerY = ny;
+  }
+
+  updateDebris();
+  updateProjectiles();
+
+  // 발사체 충돌 (경로 or 플레이어)
+  if (isDrawing) {
+    for (const p of projectiles) {
+      if (segDist({ x: playerX, y: playerY },
+                  { x: playerX, y: playerY }, p.x, p.y) < p.r + 9 ||
+          pathHitsProjectile(p)) {
+        cancelDraw(); playerX = lastSafeX; playerY = lastSafeY; break;
+      }
+    }
+  }
+
+  if (isDrawing && pathHitsDebris()) {
+    cancelDraw(); playerX = lastSafeX; playerY = lastSafeY;
+  }
+
+  // 10% 마일스톤마다 발사체 추가
+  const curMile = Math.floor(claimedCount / (COLS * ROWS) * 10) * 10;
+  if (curMile > lastPctMile) {
+    const toAdd = (curMile - lastPctMile) / 10;
+    for (let i = 0; i < toAdd; i++) spawnProjectile();
+    lastPctMile = curMile;
+  }
+
+  if (claimedCount / (COLS * ROWS) >= TARGET_PCT) endGame('win');
+  if (waterY <= 2) endGame('lose');
+}
+
+function pathHitsProjectile(p) {
+  if (drawingPath.length < 2) return false;
+  for (let i = 0; i < drawingPath.length - 1; i++)
+    if (segDist(drawingPath[i], drawingPath[i+1], p.x, p.y) < p.r + 4) return true;
+  return false;
+}
+
+function cancelDraw() { isDrawing = false; drawingPath = []; }
+
+function updateDebris() {
+  const minSpd = DEBRIS_BASE_SPD * 0.7;
+
+  for (const d of debris) {
+    d.x += d.vx; d.y += d.vy;
+
+    // 벽 반사 (정확한 경계값)
+    if (d.x - d.r < 0)  { d.x = d.r;     d.vx =  Math.abs(d.vx); }
+    if (d.x + d.r > W)  { d.x = W - d.r; d.vx = -Math.abs(d.vx); }
+    if (d.y - d.r < 0)  { d.y = d.r;     d.vy =  Math.abs(d.vy); }
+    if (d.y + d.r > H)  { d.y = H - d.r; d.vy = -Math.abs(d.vy); }
+
+    // 점령 영역 충돌: x/y 축별로 탈출 방향 판별
+    if (isClaimed(d.x, d.y)) {
+      const freeX = !isClaimed(d.x - Math.sign(d.vx) * d.r * 2, d.y);
+      const freeY = !isClaimed(d.x, d.y - Math.sign(d.vy) * d.r * 2);
+
+      if (freeX)        d.vx *= -1;
+      else if (freeY)   d.vy *= -1;
+      else {
+        // 사방이 막힌 경우 → 랜덤 각도로 강제 탈출
+        const a = Math.random() * Math.PI * 2;
+        const spd = Math.hypot(d.vx, d.vy) || minSpd;
+        d.vx = Math.cos(a) * spd;
+        d.vy = Math.sin(a) * spd;
+      }
+
+      // 클레임 밖으로 밀어내기
+      d.x += d.vx * (d.r / Math.abs(d.vx || 1));
+      d.y += d.vy * (d.r / Math.abs(d.vy || 1));
+    }
+
+    // 속도가 너무 줄지 않도록 최솟값 보장
+    const spd = Math.hypot(d.vx, d.vy);
+    if (spd < minSpd) {
+      const scale = minSpd / spd;
+      d.vx *= scale; d.vy *= scale;
+    }
+  }
+}
+
+// ─── 렌더링 ──────────────────────────────────────────
+function draw(now) {
+  ctx.clearRect(0, 0, W, H);
+  if (state === 'idle') return;
+
+  const waterPct = 1 - waterY / H; // 0=시작, 1=만수
+
+  // ① 영상 배경 (캔버스에 직접 렌더)
+  drawVideoBackground(waterPct);
+
+  // ② 점령 영역 – 거의 투명, 경계 식별용 극미세 틴트만
+  ctx.fillStyle = 'rgba(180, 230, 255, 0.07)';
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (claimedGrid[r * COLS + c]) ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
+
+  // ③ 경계 실금 오버레이
+  ctx.drawImage(edgeCanvas, 0, 0);
+
+  // ④ 방탄유리 충격 균열 오버레이
+  ctx.drawImage(crackCanvas, 0, 0);
+
+  // ④ 물 이펙트 (반투명 – 영상 물 비침)
+  drawWater(now, waterPct);
+
+  // ⑤ 드로잉 경로
+  if (drawingPath.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#ffe600';
+    ctx.lineWidth   = 2.5;
+    ctx.shadowColor = '#ffe600';
+    ctx.shadowBlur  = 10;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(drawingPath[0].x, drawingPath[0].y);
+    for (let i = 1; i < drawingPath.length; i++) ctx.lineTo(drawingPath[i].x, drawingPath[i].y);
+    ctx.stroke();
+    ctx.restore();
+    ctx.setLineDash([]);
+  }
+
+  // ⑥ 잔해
+  for (const d of debris) drawDebris(d, now);
+
+  // ⑦ 발사체
+  for (const p of projectiles) drawProjectile(p, now);
+
+  // ⑦ 망치
+  drawHammer(playerX, playerY, now);
+}
+
+// ── 영상 + 물 점진적 연출 ────────────────────────────
+function drawVideoBackground(waterPct) {
+  // 영상 그리기
+  if (bgVideo.readyState >= 2) {
+    ctx.drawImage(bgVideo, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 50% 이전: 영상 하단(물 영역)을 어둡게 덮어서 "건조한 상태" 연출
+  // 50% 도달 시점부터 완전히 드러남
+  if (waterPct < 0.5) {
+    const revealT  = waterPct / 0.5;          // 0→1 (0%→50%)
+    const maskAlpha = 1 - revealT;             // 1→0
+
+    // 하단 절반을 어두운 그라디언트로 덮음
+    const maskStartY = H * 0.42;
+    const grad = ctx.createLinearGradient(0, maskStartY, 0, H);
+    grad.addColorStop(0,   `rgba(6, 4, 8, 0)`);
+    grad.addColorStop(0.25,`rgba(6, 4, 8, ${maskAlpha * 0.55})`);
+    grad.addColorStop(0.6, `rgba(6, 4, 8, ${maskAlpha * 0.82})`);
+    grad.addColorStop(1,   `rgba(6, 4, 8, ${maskAlpha * 0.96})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, maskStartY, W, H - maskStartY);
+  }
+}
+
+// ── 물 이펙트 ────────────────────────────────────────
+function drawWater(now, waterPct) {
+  if (waterY >= H) return;
+  const t = now / 600;
+
+  // 메인 물 채움 (반투명 – 영상 물과 블렌드)
+  const grad = ctx.createLinearGradient(0, waterY, 0, H);
+  grad.addColorStop(0,    'rgba(10,  90, 220, 0.40)');
+  grad.addColorStop(0.25, 'rgba(0,   60, 160, 0.55)');
+  grad.addColorStop(1,    'rgba(0,   10,  70, 0.78)');
+  ctx.fillStyle = grad;
+
+  ctx.beginPath();
+  ctx.moveTo(0, waterY);
+  for (let x = 0; x <= W; x += 3) {
+    ctx.lineTo(x, waterY
+      + Math.sin(x / 28 + t)       * 5
+      + Math.sin(x / 11 + t * 1.8) * 2.5);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2차 밝은 파도
+  ctx.fillStyle = 'rgba(80, 200, 255, 0.12)';
+  ctx.beginPath();
+  ctx.moveTo(0, waterY + 3);
+  for (let x = 0; x <= W; x += 3) {
+    ctx.lineTo(x, waterY + 3
+      + Math.sin(x / 20 + t * 1.4) * 4
+      + Math.sin(x / 9  + t * 2.2) * 2);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // 수면 거품선
+  ctx.save();
+  ctx.strokeStyle = 'rgba(210, 245, 255, 0.55)';
+  ctx.lineWidth   = 1.8;
+  ctx.shadowColor = 'rgba(180,230,255,0.5)';
+  ctx.shadowBlur  = 4;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 3) {
+    const y = waterY
+      + Math.sin(x / 28 + t)       * 5
+      + Math.sin(x / 11 + t * 1.8) * 2.5;
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // 방울
+  ctx.fillStyle = 'rgba(180,230,255,0.45)';
+  for (let i = 0; i < 6; i++) {
+    const bx    = ((now / 300 + i * 79) % W);
+    const bPhase = ((now / 1200 + i * 0.3) % 1);
+    const by    = waterY + (H - waterY) * bPhase;
+    if (by > waterY) {
+      ctx.beginPath();
+      ctx.arc(bx, by, 1.5 + Math.sin(now/400 + i) * 0.8, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+// ── 잔해 ────────────────────────────────────────────
+function drawDebris(d, now) {
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  ctx.rotate(d.rot + now / 2000);
+  const pts = d.shape.length;
+  ctx.beginPath();
+  for (let i = 0; i < pts; i++) {
+    const angle = (i / pts) * Math.PI * 2;
+    const rr    = d.r * d.shape[i];
+    i===0 ? ctx.moveTo(Math.cos(angle)*rr, Math.sin(angle)*rr)
+          : ctx.lineTo(Math.cos(angle)*rr, Math.sin(angle)*rr);
+  }
+  ctx.closePath();
+  const rg = ctx.createRadialGradient(-d.r*0.2, -d.r*0.2, 1, 0, 0, d.r);
+  rg.addColorStop(0, '#b09060');
+  rg.addColorStop(1, '#5a3c1a');
+  ctx.fillStyle   = rg;
+  ctx.strokeStyle = '#3a2510';
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur  = 6;
+  ctx.fill(); ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(-d.r*0.35, -d.r*0.25); ctx.lineTo(d.r*0.15, d.r*0.30);
+  ctx.moveTo( d.r*0.10, -d.r*0.35); ctx.lineTo(-d.r*0.05, d.r*0.10);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── 망치 (글로우 하이라이트) ─────────────────────────
+function drawHammer(x, y, now) {
+  const pulse   = 0.55 + 0.45 * Math.sin(now / 180);
+  const drawing = isDrawing;
+  const glowClr = drawing ? '#ff4400' : '#22aaff';
+  const headClr = drawing ? '#ff8844' : '#d5dde5';
+
+  // 착지 스쿼시: 망치가 바닥에 닿는 순간 납작해졌다 복원
+  const dt = now - impactTime;
+  let sx = 1, sy = 1;
+  if (dt < 320) {
+    const t  = dt / 320;
+    const sq = Math.sin(t * Math.PI) * 0.38 * (1 - t);
+    sx = 1 + sq * 0.9;   // 가로로 퍼짐
+    sy = 1 - sq * 0.55;  // 세로로 눌림
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(sx, sy);
+
+  // 헤일로
+  const haloR = 26 + 6 * pulse;
+  const halo  = ctx.createRadialGradient(0, -6, 4, 0, -6, haloR);
+  halo.addColorStop(0, drawing ? `rgba(255,80,0,${0.35*pulse})` : `rgba(40,170,255,${0.35*pulse})`);
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(0, -6, haloR, 0, Math.PI*2); ctx.fill();
+
+  // 손잡이
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 5;
+  ctx.fillStyle   = '#c0882a'; ctx.strokeStyle = '#7a5010'; ctx.lineWidth = 1;
+  ctx.fillRect(-3.5, 2, 7, 22); ctx.strokeRect(-3.5, 2, 7, 22);
+
+  // 머리
+  ctx.shadowColor = glowClr; ctx.shadowBlur = 12 * pulse;
+  ctx.fillStyle   = headClr; ctx.strokeStyle = drawing ? '#cc5500' : '#7090a0'; ctx.lineWidth = 1.8;
+  ctx.fillRect(-12, -16, 24, 14); ctx.strokeRect(-12, -16, 24, 14);
+
+  // 하이라이트
+  ctx.shadowBlur = 0;
+  ctx.fillStyle  = 'rgba(255,255,255,0.38)';
+  ctx.fillRect(-10, -14, 20, 5);
+
+  // 드로잉 중 외곽 강조
+  if (drawing) {
+    ctx.strokeStyle = `rgba(255,80,0,${0.5*pulse})`;
+    ctx.lineWidth   = 3 + 2 * pulse;
+    ctx.strokeRect(-13, -17, 26, 16);
+  }
+
+  ctx.restore();
+}
+
+// ─── 게임 종료 ───────────────────────────────────────
+// ─── 승리 연출 상태 ──────────────────────────────────
+let winAnim = { active: false, startTime: 0 };
+const WIN_ANIM_MS = 4000; // 2s 균열 + 1s 파편 + 1s 엔딩
+
+let shards    = [];
+let winCracks = [];
+
+// 엔딩 이미지 미리 로드
+const endingImg = new Image();
+endingImg.src = 'ending.png';
+
+// 엔딩 이미지를 텍스트 가려서 그리는 헬퍼
+function drawEndingImageCovered(alpha) {
+  if (!endingImg.complete) return;
+  const iw = endingImg.naturalWidth  || W;
+  const ih = endingImg.naturalHeight || H;
+  const scale = Math.max(W / iw, H / ih);
+  const dw = iw * scale, dh = ih * scale;
+  const dx = (W - dw) / 2, dy = (H - dh) / 2;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(endingImg, dx, dy, dw, dh);
+
+  // 아쿠아 서바이벌 (상단 ~22%) 커버
+  const titleY2 = dy + dh * 0.22;
+  if (titleY2 > 0) {
+    const grad = ctx.createLinearGradient(0, Math.max(0, dy), 0, titleY2);
+    grad.addColorStop(0,   '#bfd8e5');
+    grad.addColorStop(0.7, '#bfd8e5');
+    grad.addColorStop(1,   'rgba(191,216,229,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(dx, Math.max(0, dy), dw, titleY2 - Math.max(0, dy));
+  }
+
+  // 구출 성공! (우하단 87~97%, x 60~98%) 커버
+  const btnY1 = dy + dh * 0.865, btnY2 = dy + dh * 0.975;
+  const btnX1 = dx + dw * 0.58,  btnX2 = dx + dw * 0.985;
+  if (btnY1 < H && btnX1 < W) {
+    ctx.fillStyle = '#bfd8e5';
+    ctx.fillRect(
+      Math.max(0, btnX1), Math.max(0, btnY1),
+      Math.min(btnX2, W) - Math.max(0, btnX1),
+      Math.min(btnY2, H) - Math.max(0, btnY1)
+    );
+  }
+
+  ctx.restore();
+}
+
+function spawnShards() {
+  shards    = [];
+  winCracks = [];
+
+  // ── 대형 파편 80개 ──────────────────────────────────
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd   = 7 + Math.random() * 16;
+    shards.push({
+      x: W/2 + (Math.random()-0.5)*W*0.9,
+      y: H/2 + (Math.random()-0.5)*H*0.8,
+      vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd - 4,
+      w: 22 + Math.random()*62, h: 11 + Math.random()*36,
+      rot: Math.random()*Math.PI*2, vrot: (Math.random()-0.5)*0.18,
+      alpha: 0.95,
+    });
+  }
+
+  // ── 균열 라인 생성 ──────────────────────────────────
+  const centers = [
+    {x:W*0.50, y:H*0.46}, {x:W*0.22, y:H*0.32}, {x:W*0.78, y:H*0.60},
+    {x:W*0.38, y:H*0.72}, {x:W*0.68, y:H*0.22}, {x:W*0.55, y:H*0.82},
+  ];
+  for (const c of centers) {
+    const numRays = 9 + Math.floor(Math.random()*4);
+    for (let i = 0; i < numRays; i++) {
+      const baseA = (i / numRays) * Math.PI * 2;
+      const a0    = baseA + (Math.random()-0.5)*0.4;
+      const total = 100 + Math.random() * 230;
+      const steps = 7 + Math.floor(Math.random()*5);
+      const stepL = total / steps;
+      const pts   = [{x:c.x, y:c.y}];
+      let px=c.x, py=c.y, a=a0;
+      for (let s=0; s<steps; s++) {
+        a += (Math.random()-0.5)*0.3;
+        px += Math.cos(a)*stepL; py += Math.sin(a)*stepL;
+        pts.push({x:px, y:py});
+      }
+      const cumD = [0];
+      for (let p=1; p<pts.length; p++)
+        cumD.push(cumD[p-1] + Math.hypot(pts[p].x-pts[p-1].x, pts[p].y-pts[p-1].y));
+      winCracks.push({
+        pts, cumD,
+        totalLen: cumD[cumD.length-1],
+        alpha: 0.65 + Math.random()*0.35,
+        lineW:  0.9 + Math.random()*1.5,
+      });
+    }
+  }
+}
+
+function drawDialogueBox(alpha) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // 하단 딤 그라데이션 (화면 아래 15% 영역)
+  const dimH = H * 0.15;
+  const dimY = H - dimH;
+  const grad = ctx.createLinearGradient(0, dimY, 0, H);
+  grad.addColorStop(0,   'rgba(0,0,0,0)');
+  grad.addColorStop(0.4, 'rgba(0,0,0,0.58)');
+  grad.addColorStop(1,   'rgba(0,0,0,0.82)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, dimY, W, dimH);
+
+  // 캐릭터명 태그 (좌측 정렬)
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'left';
+  const nameText = '데스티나';
+  const nameW    = ctx.measureText(nameText).width + 24;
+  const nameTagH = 22;
+  const nameTagY = H - 76;
+  const nameTagX = 24;
+  ctx.fillStyle = 'rgba(0,160,220,0.80)';
+  ctx.beginPath();
+  ctx.roundRect(nameTagX, nameTagY, nameW, nameTagH, 4);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3;
+  ctx.fillText(nameText, nameTagX + 12, nameTagY + 15);
+
+  // 대사 텍스트 (가운데 정렬)
+  ctx.font = '600 20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
+  ctx.fillText('덕분에 살았어요.', W / 2, H - 22);
+
+  ctx.restore();
+}
+
+function drawWinAnim(now) {
+  // ── 엔딩 정지 상태: 이미지 고정 렌더 ────────────
+  if (winAnim.done) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    drawEndingImageCovered(1);
+    drawDialogueBox(1);
+    return;
+  }
+
+  const t = Math.min((now - winAnim.startTime) / WIN_ANIM_MS, 1);
+
+  // ── 검은 배경 ─────────────────────────────────────
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Phase 0: 균열 성장 (t 0~0.5 = 2초) ──────────
+  const crackProg = Math.min(t / 0.5, 1);
+  // 파편 시작 후 균열 서서히 사라짐
+  const crackFade = t <= 0.5 ? 1 : Math.max(0, 1 - (t - 0.5) / 0.15);
+  if (crackFade > 0) {
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.globalAlpha = crackFade;
+    for (const crack of winCracks) {
+      const target = crack.totalLen * crackProg;
+      if (target <= 0) continue;
+      ctx.lineWidth   = crack.lineW;
+      ctx.strokeStyle = `rgba(220,240,255,${crack.alpha})`;
+      ctx.shadowColor = 'rgba(160,220,255,0.6)'; ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(crack.pts[0].x, crack.pts[0].y);
+      for (let i = 1; i < crack.pts.length; i++) {
+        const s0 = crack.cumD[i-1], s1 = crack.cumD[i];
+        if (s0 >= target) break;
+        if (s1 <= target) {
+          ctx.lineTo(crack.pts[i].x, crack.pts[i].y);
+        } else {
+          const f = (target - s0) / (s1 - s0);
+          ctx.lineTo(
+            crack.pts[i-1].x + (crack.pts[i].x - crack.pts[i-1].x) * f,
+            crack.pts[i-1].y + (crack.pts[i].y - crack.pts[i-1].y) * f
+          );
+          break;
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ── Phase 1: 대형 파편 폭발 (t 0.5~0.75 = 1초) ──
+  if (t >= 0.5) {
+    const shardProg = Math.min((t - 0.5) / 0.25, 1);
+    for (const s of shards) {
+      s.x += s.vx; s.y += s.vy; s.vy += 0.35;
+      s.rot += s.vrot;
+      const a = Math.max(0, 0.95 * (1 - shardProg));
+      if (a <= 0) continue;
+      ctx.save();
+      ctx.translate(s.x, s.y); ctx.rotate(s.rot);
+      ctx.globalAlpha   = a;
+      ctx.fillStyle     = 'rgba(200,240,255,0.85)';
+      ctx.strokeStyle   = 'rgba(160,230,255,0.95)';
+      ctx.lineWidth     = 1.4;
+      ctx.shadowColor   = 'rgba(150,220,255,0.9)'; ctx.shadowBlur = 10;
+      ctx.fillRect(-s.w/2, -s.h/2, s.w, s.h);
+      ctx.strokeRect(-s.w/2, -s.h/2, s.w, s.h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Phase 2: 엔딩 이미지 페이드인 (t 0.75~1.0 = 1초) ──
+  if (t > 0.75) {
+    const fa   = Math.min((t - 0.75) / 0.25, 1);
+    const ease = 1 - Math.pow(1 - fa, 3);
+    drawEndingImageCovered(ease);
+    if (ease > 0.4) drawDialogueBox(Math.min((ease - 0.4) / 0.6, 1));
+  }
+
+  // ── Phase 3: 연출 끝 → 다시하기 버튼 ────────────
+  if (t >= 1) {
+    winAnim.done = true;
+    // 상단 스탯 패널 + 방향키 숨기기
+    document.getElementById('ui').style.visibility   = 'hidden';
+    document.getElementById('joystick').style.visibility = 'hidden';
+    const el = document.getElementById('overlay');
+    el.style.background = 'none';
+    el.innerHTML = `<button id="restart-btn" class="btn-highlight" style="
+      position:absolute; top:10px; left:50%; transform:translateX(-50%);
+      padding:5px 22px; font-size:15px; font-weight:700;
+      background:rgba(0,0,0,0.55);
+      border:1px solid rgba(100,200,255,0.4); border-radius:10px; color:#fff;
+      cursor:pointer; letter-spacing:0.05em; white-space:nowrap;
+    ">다시하기</button>`;
+    el.style.display = 'flex';
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      winAnim.active = false;
+      winAnim.done   = false;
+      document.getElementById('ui').style.visibility   = '';
+      document.getElementById('joystick').style.visibility = '';
+      el.style.background = '';
+      el.style.display    = 'none';
+      init();
+    });
+  }
+}
+
+function endGame(result) {
+  state = result;
+  if (result === 'win') {
+    // 방향키 즉시 숨김
+    document.getElementById('joystick').style.visibility = 'hidden';
+    // 와장창 연출 시작
+    winAnim.active    = true;
+    winAnim.startTime = performance.now();
+    spawnShards();
+  } else {
+    const el = document.getElementById('overlay');
+    el.innerHTML = `<h1>💧 수몰...</h1><p>물이 다 차버렸습니다.<br>다시 시도해보세요!</p><button id="restart-btn">다시하기</button>`;
+    el.style.display = 'flex';
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      el.style.display = 'none';
+      init();
+    });
+  }
+}
+// 페이지 로드 시 바로 시작
+bgVideo.addEventListener('canplay', () => { if (state === 'idle') init(); });
+bgVideo.addEventListener('loadeddata', () => { if (state === 'idle') init(); });
+setTimeout(() => { if (state === 'idle') init(); }, 800);
+
+// ─── 메인 루프 ───────────────────────────────────────
+function loop(now) {
+  update(now);
+  draw(now);
+
+  // 승리 와장창 연출 (draw 위에 겹침)
+  if (winAnim.active) drawWinAnim(now);
+
+  const total  = COLS * ROWS;
+  const pct100 = (claimedCount / total * 100) | 0;
+  const wPct   = ((1 - waterY / H) * 100) | 0;
+  document.getElementById('pct').textContent       = pct100;
+  document.getElementById('water-pct').textContent = wPct;
+  const tb = document.getElementById('timer-box');
+  tb.style.color = wPct > 70 ? '#f55' : wPct > 40 ? '#fa0' : '#fff';
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
