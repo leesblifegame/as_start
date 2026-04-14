@@ -36,8 +36,8 @@
   /* 조이스틱 */
   #joystick {
     position: absolute;
-    bottom: 30px;
-    left: 30px;
+    top: 0;
+    left: 0;
     width: 100px;
     height: 100px;
     border-radius: 50%;
@@ -58,6 +58,20 @@
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   }
+  .joy-label {
+    position: absolute;
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    line-height: 1;
+  }
+  .joy-up    { top: 5px;    left: 50%; transform: translateX(-50%); }
+  .joy-down  { bottom: 5px; left: 50%; transform: translateX(-50%); }
+  .joy-left  { left: 5px;   top: 50%;  transform: translateY(-50%); }
+  .joy-right { right: 5px;  top: 50%;  transform: translateY(-50%); }
   /* 상태창 UI */
   #ui {
     position: absolute;
@@ -146,6 +160,10 @@
 
   <div id="joystick">
     <div id="joystick-knob"></div>
+    <span class="joy-label joy-up">W</span>
+    <span class="joy-label joy-left">A</span>
+    <span class="joy-label joy-down">S</span>
+    <span class="joy-label joy-right">D</span>
   </div>
 
   <div id="ui">
@@ -244,6 +262,7 @@ let lastPctMile    = 0;    // 마지막으로 발사체를 추가한 %
 const DROP_DURATION = 520; // ms
 let drop = { active: false, startTime: 0, fromY: -60, toY: 0 };
 let impactTime = -9999; // 착지 시각
+let isMoving   = false; // 이동 중 여부 (망치질 모션용)
 
 // ─── 키 입력 ────────────────────────────────────────
 const K  = { up:false, down:false, left:false, right:false };
@@ -307,6 +326,21 @@ joyBase.addEventListener('touchend',   e => {
   for (const t of e.changedTouches) if (t.identifier === joyTouchId) { joyReset(); break; }
 }, { passive: false });
 joyBase.addEventListener('touchcancel', joyReset, { passive: false });
+
+// ── 마우스 드래그(PC)로 조이스틱 조작 ─────────────────
+let joyMouseActive = false;
+joyBase.addEventListener('mousedown', e => {
+  joyMouseActive = true;
+  joyUpdate(e.clientX, e.clientY);
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!joyMouseActive) return;
+  joyUpdate(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', () => {
+  if (joyMouseActive) { joyMouseActive = false; joyReset(); }
+});
 
 // ─── 초기화 ─────────────────────────────────────────
 function init() {
@@ -721,6 +755,9 @@ function update(now) {
     }
 
     playerX = nx; playerY = ny;
+    isMoving = true;
+  } else {
+    isMoving = false;
   }
 
   updateDebris();
@@ -998,9 +1035,18 @@ function drawHammer(x, y, now) {
     sy = 1 - sq * 0.55;  // 세로로 눌림
   }
 
+  // 망치질 모션: 이동 중 손잡이 아래쪽(그립)을 중심으로 진자 스윙
+  const swingAngle = isMoving
+    ? Math.sin(now / 90) * (Math.PI / 5.5)   // 이동 중 ±33° 진자 운동
+    : 0;
+
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(sx, sy);
+  // 그립(손잡이 하단, y≈20) 기준 회전
+  ctx.translate(0, 20);
+  ctx.rotate(swingAngle);
+  ctx.translate(0, -20);
 
   // 헤일로
   const haloR = 26 + 6 * pulse;
@@ -1326,6 +1372,12 @@ function loop(now) {
   document.getElementById('water-pct').textContent = wPct;
   const tb = document.getElementById('timer-box');
   tb.style.color = wPct > 70 ? '#f55' : wPct > 40 ? '#fa0' : '#fff';
+
+  // 조이스틱 위치 동기화
+  const jx = Math.max(0, Math.min(W - 100, playerX - 50));
+  const jy = Math.max(0, Math.min(H - 100, playerY - 50));
+  joyBase.style.left = jx + 'px';
+  joyBase.style.top  = jy + 'px';
 
   requestAnimationFrame(loop);
 }
