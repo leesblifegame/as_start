@@ -275,7 +275,7 @@ let lastPctMile    = 0;    // 마지막으로 발사체를 추가한 %
 const DROP_DURATION = 676; // ms  (520 × 1.3 — 낙하 속도 -30%)
 let drop = { active: false, startTime: 0, fromY: -60, toY: 0 };
 let impactTime = -9999; // 착지 시각
-let isMoving   = false; // 이동 중 여부 (망치질 모션용)
+let punchTime  = -9999; // 땅 먹기 퍽! 연출 시각
 
 // ─── 키 입력 ────────────────────────────────────────
 const K  = { up:false, down:false, left:false, right:false };
@@ -392,6 +392,7 @@ function init() {
   drop.fromY     = -60;
   drop.toY       = startY;
   impactTime     = -9999;
+  punchTime      = -9999;
 }
 
 function _claim(c, r) {
@@ -764,15 +765,13 @@ function update(now) {
         drawingPath = [];
         syncDebrisCount();
         lastSafeX = nx; lastSafeY = ny;
+        punchTime = now; // 퍽! 연출 트리거
       }
     } else if (nowOnSafe) {
       lastSafeX = nx; lastSafeY = ny;
     }
 
     playerX = nx; playerY = ny;
-    isMoving = true;
-  } else {
-    isMoving = false;
   }
 
   updateDebris();
@@ -1050,17 +1049,31 @@ function drawHammer(x, y, now) {
     sy = 1 - sq * 0.55;  // 세로로 눌림
   }
 
-  // 망치질 모션: 이동 중 손잡이 아래쪽(그립)을 중심으로 진자 스윙
-  const swingAngle = isMoving
-    ? Math.sin(now / 90) * (Math.PI / 5.5)   // 이동 중 ±33° 진자 운동
+  // 낙하 중 회전: 떨어지는 동안 계속 스핀
+  const dropAngle = drop.active
+    ? (now - drop.startTime) / DROP_DURATION * Math.PI * 4  // 낙하 동안 2바퀴 회전
     : 0;
+
+  // 퍽! 연출: 땅 먹을 때 망치를 앞으로 쾅 내리쳤다 복귀
+  const PUNCH_DUR = 280; // ms
+  const pd = now - punchTime;
+  let punchAngle = 0;
+  let punchScale = 1;
+  if (!drop.active && pd < PUNCH_DUR) {
+    const t  = pd / PUNCH_DUR;
+    // 빠른 타격(0~35%) + 느린 복귀(35~100%)
+    const tp = t < 0.35 ? t / 0.35 : (1 - t) / 0.65;
+    punchAngle = tp * (Math.PI / 3);         // 최대 60° 전방 타격
+    punchScale = 1 + tp * 0.25;              // 타격 시 살짝 커짐
+  }
 
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(sx, sy);
-  // 그립(손잡이 하단, y≈20) 기준 회전
+  ctx.scale(sx * punchScale, sy * punchScale);
+  ctx.rotate(dropAngle);           // 낙하 스핀 (중심 기준)
+  // 그립(손잡이 하단, y≈20) 기준 퍽! 스윙
   ctx.translate(0, 20);
-  ctx.rotate(swingAngle);
+  ctx.rotate(punchAngle);
   ctx.translate(0, -20);
 
   // 헤일로
