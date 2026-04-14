@@ -12,6 +12,7 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     touch-action: none;
     font-family: Arial, sans-serif;
@@ -20,6 +21,7 @@
     position: relative;
     width: 480px;
     height: 640px;
+    transform-origin: center center;
   }
   /* 영상은 숨기고 캔버스에 직접 그림 */
   #bg-video {
@@ -36,8 +38,8 @@
   /* 조이스틱 */
   #joystick {
     position: absolute;
-    top: 0;
-    left: 0;
+    bottom: 30px;
+    left: 30px;
     width: 100px;
     height: 100px;
     border-radius: 50%;
@@ -247,6 +249,17 @@ function redrawEdges() {
   edgeCtx.restore();
 }
 
+// ─── 화면 스케일 (모바일 전체화면 맞춤) ──────────────────
+let gameScale = 1;
+function resizeGame() {
+  const s = Math.min(window.innerWidth * 0.96 / 480, window.innerHeight * 0.96 / 640);
+  gameScale = s;
+  document.getElementById('game-wrapper').style.transform = `scale(${s})`;
+}
+window.addEventListener('resize', resizeGame);
+window.addEventListener('orientationchange', () => setTimeout(resizeGame, 150));
+resizeGame();
+
 // ─── 상태 ───────────────────────────────────────────
 let state       = 'idle';
 let startTime   = 0;
@@ -298,7 +311,8 @@ function joyCenter() {
 }
 function joyUpdate(cx, cy) {
   const c  = joyCenter();
-  let ox = cx - c.x, oy = cy - c.y;
+  // 스크린 좌표 → 게임 내부 좌표로 역변환 (스케일 보정)
+  let ox = (cx - c.x) / gameScale, oy = (cy - c.y) / gameScale;
   const d  = Math.hypot(ox, oy);
   if (d > JOY_R) { ox = ox / d * JOY_R; oy = oy / d * JOY_R; }
   joy.x = ox / JOY_R;
@@ -1373,11 +1387,22 @@ function loop(now) {
   const tb = document.getElementById('timer-box');
   tb.style.color = wPct > 70 ? '#f55' : wPct > 40 ? '#fa0' : '#fff';
 
-  // 조이스틱 위치 동기화
-  const jx = Math.max(0, Math.min(W - 100, playerX - 50));
-  const jy = Math.max(0, Math.min(H - 100, playerY - 50));
-  joyBase.style.left = jx + 'px';
-  joyBase.style.top  = jy + 'px';
+  // 키보드 입력 기반 노브 위치 반영 (터치 중이 아닐 때)
+  if (joyTouchId === null) {
+    let kdx = 0, kdy = 0;
+    if (K.up)    kdy -= 1;
+    if (K.down)  kdy += 1;
+    if (K.left)  kdx -= 1;
+    if (K.right) kdx += 1;
+    if (kdx !== 0 || kdy !== 0) {
+      const klen = Math.hypot(kdx, kdy);
+      const ox = (kdx / klen) * JOY_R;
+      const oy = (kdy / klen) * JOY_R;
+      joyKnob.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
+    } else {
+      joyKnob.style.transform = 'translate(-50%, -50%)';
+    }
+  }
 
   requestAnimationFrame(loop);
 }
