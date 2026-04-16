@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aqua Survival — 게임 선택</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c0:#020912;--c1:#04101f;--c2:#07182e;--c3:#0a1f3a;
+  --ocean:#3ab8f5;--biolum:#00e8c8;--amber:#f6ca45;
+  --coral:#f87272;--jade:#35d49c;--violet:#7c8fff;--rose:#ff7eb3;
+  --oa:rgba(58,184,245,0.11);--ba:rgba(0,232,200,0.09);
+  --bdr:rgba(58,184,245,0.09);--bdrm:rgba(58,184,245,0.18);--bdrh:rgba(58,184,245,0.32);
+  --t1:#dff0ff;--t2:#6da8cb;--t3:#4d85a8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background:var(--c0);color:var(--t1);
+  min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+
+/* BG layers */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -5%,rgba(58,184,245,.10) 0%,transparent 65%),
+    radial-gradient(ellipse 60% 55% at 5% 100%,rgba(0,232,200,.08) 0%,transparent 55%),
+    radial-gradient(ellipse 45% 40% at 95% 15%,rgba(124,143,255,.06) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,transparent 0px,transparent 96px,rgba(58,184,245,.010) 96px,rgba(58,184,245,.010) 97px);
+}
+
+/* particles canvas */
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.45;}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;height:60px;
+  background:rgba(2,9,18,.88);backdrop-filter:blur(24px) saturate(200%);
+  border-bottom:1px solid var(--bdrm);z-index:100;
+  display:flex;align-items:center;padding:0 40px;gap:16px;
+}
+.nav-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,rgba(58,184,245,.15),rgba(0,232,200,.1)) padding-box,
+             linear-gradient(135deg,var(--ocean),var(--biolum)) border-box;
+  border:1px solid transparent;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  filter:drop-shadow(0 0 8px rgba(58,184,245,.55));
+  flex-shrink:0;
+}
+.nav-title{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--ocean);letter-spacing:.07em;text-transform:uppercase;}
+.nav-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);letter-spacing:.05em;margin-left:4px;}
+.nav-badge{
+  margin-left:auto;
+  display:flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:20px;
+  background:rgba(0,232,200,.07);border:1px solid rgba(0,232,200,.2);
+  font-size:11px;color:var(--biolum);
+}
+.nav-badge-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--biolum);
+  box-shadow:0 0 6px rgba(0,232,200,.7);
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,232,200,.5);}50%{opacity:.6;box-shadow:0 0 0 4px rgba(0,232,200,0);}}
+
+/* PAGE */
+.page{position:relative;z-index:1;min-height:100vh;padding:100px 40px 80px;}
+
+/* HERO */
+.hero{text-align:center;margin-bottom:72px;}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:5px 14px;border-radius:20px;
+  background:rgba(58,184,245,.07);border:1px solid var(--bdrm);
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:22px;
+}
+.hero-title{
+  font-family:'Outfit',sans-serif;font-size:clamp(36px,6vw,72px);
+  font-weight:900;line-height:1.05;letter-spacing:-.03em;
+  background:linear-gradient(135deg,var(--t1) 30%,var(--ocean) 65%,var(--biolum) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:18px;
+}
+.hero-sub{
+  font-size:15px;color:var(--t2);line-height:1.7;
+  max-width:540px;margin:0 auto;
+}
+
+/* DIVIDER */
+.h-rule{
+  width:120px;height:1px;margin:32px auto;
+  background:linear-gradient(90deg,transparent,var(--ocean),transparent);
+}
+
+/* GRID */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:24px;
+  max-width:1280px;margin:0 auto;
+}
+
+/* CARD */
+.card{
+  position:relative;overflow:hidden;border-radius:18px;
+  background:linear-gradient(160deg,var(--c2),var(--c1));
+  border:1px solid var(--bdrm);
+  cursor:pointer;
+  transition:transform .25s cubic-bezier(.22,.61,.36,1),
+              box-shadow .25s,border-color .25s;
+  text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;
+  animation:card-in .45s cubic-bezier(.22,.61,.36,1) both;
+}
+.card:nth-child(1){animation-delay:.05s;}
+.card:nth-child(2){animation-delay:.12s;}
+.card:nth-child(3){animation-delay:.19s;}
+.card:nth-child(4){animation-delay:.26s;}
+@keyframes card-in{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+
+.card:hover{
+  transform:translateY(-8px) scale(1.01);
+  border-color:var(--bdrh);
+}
+
+/* card accent glow per theme */
+.card[data-color="ocean"]:hover{box-shadow:0 20px 60px rgba(58,184,245,.18),0 4px 16px rgba(58,184,245,.12);}
+.card[data-color="biolum"]:hover{box-shadow:0 20px 60px rgba(0,232,200,.18),0 4px 16px rgba(0,232,200,.12);}
+.card[data-color="amber"]:hover{box-shadow:0 20px 60px rgba(246,202,69,.16),0 4px 16px rgba(246,202,69,.10);}
+.card[data-color="violet"]:hover{box-shadow:0 20px 60px rgba(124,143,255,.18),0 4px 16px rgba(124,143,255,.12);}
+
+/* card stripe */
+.card-stripe{height:3px;width:100%;}
+.card[data-color="ocean"] .card-stripe{background:linear-gradient(90deg,var(--ocean),var(--biolum));}
+.card[data-color="biolum"] .card-stripe{background:linear-gradient(90deg,var(--biolum),var(--jade));}
+.card[data-color="amber"] .card-stripe{background:linear-gradient(90deg,var(--amber),var(--coral));}
+.card[data-color="violet"] .card-stripe{background:linear-gradient(90deg,var(--violet),var(--rose));}
+
+/* card body */
+.card-body{padding:28px 28px 24px;flex:1;display:flex;flex-direction:column;}
+
+.card-num{
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
+  letter-spacing:.1em;opacity:.55;margin-bottom:14px;
+}
+.card[data-color="ocean"] .card-num{color:var(--ocean);}
+.card[data-color="biolum"] .card-num{color:var(--biolum);}
+.card[data-color="amber"] .card-num{color:var(--amber);}
+.card[data-color="violet"] .card-num{color:var(--violet);}
+
+.card-icon{font-size:40px;margin-bottom:18px;line-height:1;filter:drop-shadow(0 0 10px rgba(58,184,245,.35));}
+.card[data-color="biolum"] .card-icon{filter:drop-shadow(0 0 10px rgba(0,232,200,.35));}
+.card[data-color="amber"] .card-icon{filter:drop-shadow(0 0 10px rgba(246,202,69,.3));}
+.card[data-color="violet"] .card-icon{filter:drop-shadow(0 0 10px rgba(124,143,255,.35));}
+
+.card-title{
+  font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;
+  color:var(--t1);letter-spacing:-.02em;margin-bottom:10px;
+}
+.card-desc{
+  font-size:13px;color:var(--t2);line-height:1.65;flex:1;margin-bottom:22px;
+}
+
+/* card footer */
+.card-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:16px;border-top:1px solid var(--bdr);
+}
+.card-tag{
+  font-size:11px;padding:3px 10px;border-radius:12px;
+  font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:.04em;
+}
+.card[data-color="ocean"] .card-tag{background:rgba(58,184,245,.1);color:var(--ocean);border:1px solid rgba(58,184,245,.2);}
+.card[data-color="biolum"] .card-tag{background:rgba(0,232,200,.1);color:var(--biolum);border:1px solid rgba(0,232,200,.2);}
+.card[data-color="amber"] .card-tag{background:rgba(246,202,69,.1);color:var(--amber);border:1px solid rgba(246,202,69,.2);}
+.card[data-color="violet"] .card-tag{background:rgba(124,143,255,.1);color:var(--violet);border:1px solid rgba(124,143,255,.2);}
+
+.card-arrow{
+  width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:15px;transition:transform .2s,background .2s;
+  background:rgba(255,255,255,.04);border:1px solid var(--bdr);
+}
+.card:hover .card-arrow{transform:translateX(4px);background:rgba(255,255,255,.08);}
+
+/* card bg decoration */
+.card-bg-orb{
+  position:absolute;bottom:-30px;right:-30px;
+  width:110px;height:110px;border-radius:50%;
+  pointer-events:none;opacity:.07;transition:opacity .25s;
+}
+.card:hover .card-bg-orb{opacity:.14;}
+.card[data-color="ocean"] .card-bg-orb{background:radial-gradient(circle,var(--ocean),transparent 70%);}
+.card[data-color="biolum"] .card-bg-orb{background:radial-gradient(circle,var(--biolum),transparent 70%);}
+.card[data-color="amber"] .card-bg-orb{background:radial-gradient(circle,var(--amber),transparent 70%);}
+.card[data-color="violet"] .card-bg-orb{background:radial-gradient(circle,var(--violet),transparent 70%);}
+
+/* FOOTER */
+.footer{
+  text-align:center;margin-top:72px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);
+  display:flex;flex-direction:column;gap:6px;align-items:center;
+}
+.footer-line{
+  width:80px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--bdrm),transparent);
+  margin-bottom:12px;
+}
+
+/* ripple */
+.card::after{
+  content:'';position:absolute;inset:0;border-radius:18px;
+  background:radial-gradient(circle at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.06) 0%, transparent 60%);
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+.card:hover::after{opacity:1;}
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<nav>
+  <div class="nav-icon">🌊</div>
+  <div>
+    <div class="nav-title">Aqua Survival</div>
+    <div class="nav-sub">GAME SELECT</div>
+  </div>
+  <div class="nav-badge">
+    <div class="nav-badge-dot"></div>
+    4 GAMES ONLINE
+  </div>
+</nav>
+
+<div class="page">
+  <div class="hero">
+    <div class="hero-eyebrow">🎮 &nbsp;MINI GAME COLLECTION</div>
+    <h1 class="hero-title">어떤 게임을<br>플레이할까요?</h1>
+    <p class="hero-sub">Aqua Survival 세계관의 미니게임들입니다.<br>카드를 클릭하여 바로 플레이하세요.</p>
+    <div class="h-rule"></div>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1. 살려주세요 -->
+    <a class="card" data-color="ocean"
+       href="https://leesblifegame.github.io/as_start/"
+       target="_blank" rel="noopener">
+      <div class="card-stripe"></div>
+      <div class="card-body">
+        <div class="card-num">GAME · 01</div>
+        <div class="card-icon">🆘</div>
+        <div class="card-title">살려주세요</div>
+        <div class="card-desc">
+          거대한 파도와 재난 속에서 살아남아야 합니다.<br>
+          극한의 생존 상황에서 최선의 선택을 하세요.
+        </div>
+        <div class="card-footer">
+          <span class="card-tag">SURVIVAL</span>
+          <div class="card-arrow">→</div>
+        </div>
+      </div>
+      <div class="card-bg-orb"></div>
+    </a>
+
+    <!-- 2. 심해의 습격 -->
+    <a class="card" data-color="biolum"
+       href="https://hygugung.github.io/AS_Abyssal-Siege/spec.html"
+       target="_blank" rel="noopener">
+      <div class="card-stripe"></div>
+      <div class="card-body">
+        <div class="card-num">GAME · 02</div>
+        <div class="card-icon">🦑</div>
+        <div class="card-title">심해의 습격</div>
+        <div class="card-desc">
+          심해 생명체들이 기지를 향해 밀려옵니다.<br>
+          방어선을 구축하고 습격을 막아내세요.
+        </div>
+        <div class="card-footer">
+          <span class="card-tag">DEFENSE</span>
+          <div class="card-arrow">→</div>
+        </div>
+      </div>
+      <div class="card-bg-orb"></div>
+    </a>
+
+    <!-- 3. 데스티니 구출 -->
+    <a class="card" data-color="amber"
+       href="https://sanghyukpark890.github.io/Project_AS_minigame_01/voyage_minigame_easy_version2.html"
+       target="_blank" rel="noopener">
+      <div class="card-stripe"></div>
+      <div class="card-body">
+        <div class="card-num">GAME · 03</div>
+        <div class="card-icon">🚢</div>
+        <div class="card-title">데스티니 구출</div>
+        <div class="card-desc">
+          침몰하는 항해 중 동료들을 구출해야 합니다.<br>
+          시간과의 싸움, 모두를 살려 귀환하세요.
+        </div>
+        <div class="card-footer">
+          <span class="card-tag">RESCUE</span>
+          <div class="card-arrow">→</div>
+        </div>
+      </div>
+      <div class="card-bg-orb"></div>
+    </a>
+
+    <!-- 4. 최후의 방주 -->
+    <a class="card" data-color="violet"
+       href="https://plutoniumpark.github.io/last-ark/"
+       target="_blank" rel="noopener">
+      <div class="card-stripe"></div>
+      <div class="card-body">
+        <div class="card-num">GAME · 04</div>
+        <div class="card-icon">⚓</div>
+        <div class="card-title">최후의 방주</div>
+        <div class="card-desc">
+          인류 최후의 피난처, 방주를 지켜야 합니다.<br>
+          끝없는 위협에 맞서 마지막 희망을 수호하세요.
+        </div>
+        <div class="card-footer">
+          <span class="card-tag">STRATEGY</span>
+          <div class="card-arrow">→</div>
+        </div>
+      </div>
+      <div class="card-bg-orb"></div>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-line"></div>
+    <div>AQUA SURVIVAL · MINI GAME COLLECTION</div>
+    <div style="opacity:.6">© 2026 — 4 GAMES AVAILABLE</div>
+  </div>
+</div>
+
+<script>
+/* === ripple mouse tracking === */
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width * 100).toFixed(1);
+    const y = ((e.clientY - r.top) / r.height * 100).toFixed(1);
+    card.style.setProperty('--rx', x + '%');
+    card.style.setProperty('--ry', y + '%');
+  });
+});
+
+/* === floating particles === */
+(function(){
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let W, H, pts = [];
+
+  const colors = [
+    'rgba(58,184,245,', 'rgba(0,232,200,', 'rgba(124,143,255,'
+  ];
+
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function init(){
+    pts = [];
+    for(let i = 0; i < 55; i++){
+      pts.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.6 + 0.4,
+        vx: (Math.random() - .5) * .3,
+        vy: (Math.random() - .5) * .3,
+        a: Math.random() * .5 + .15,
+        c: colors[Math.floor(Math.random() * colors.length)],
+        flicker: Math.random() * Math.PI * 2,
+        fspeed: Math.random() * .02 + .005,
+      });
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    pts.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.flicker += p.fspeed;
+      if(p.x < 0) p.x = W; if(p.x > W) p.x = 0;
+      if(p.y < 0) p.y = H; if(p.y > H) p.y = 0;
+      const alpha = p.a + Math.sin(p.flicker) * 0.12;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.c + alpha.toFixed(2) + ')';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  resize(); init(); draw();
+})();
+</script>
+</body>
+</html>
