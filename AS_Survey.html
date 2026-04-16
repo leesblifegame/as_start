@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aqua Survival — 설문조사</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c0:#020912;--c1:#04101f;--c2:#07182e;--c3:#0a1f3a;
+  --ocean:#3ab8f5;--biolum:#00e8c8;--amber:#f6ca45;
+  --coral:#f87272;--jade:#35d49c;--violet:#7c8fff;--rose:#ff7eb3;
+  --bdr:rgba(58,184,245,0.09);--bdrm:rgba(58,184,245,0.18);--bdrh:rgba(58,184,245,0.35);
+  --t1:#dff0ff;--t2:#6da8cb;--t3:#4d85a8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background:var(--c0);color:var(--t1);
+  min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -5%,rgba(58,184,245,.10) 0%,transparent 65%),
+    radial-gradient(ellipse 60% 55% at 5% 100%,rgba(0,232,200,.08) 0%,transparent 55%),
+    radial-gradient(ellipse 45% 40% at 95% 15%,rgba(124,143,255,.06) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,transparent 0px,transparent 96px,rgba(58,184,245,.010) 96px,rgba(58,184,245,.010) 97px);
+}
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.4;}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;height:60px;
+  background:rgba(2,9,18,.88);backdrop-filter:blur(24px) saturate(200%);
+  border-bottom:1px solid var(--bdrm);z-index:100;
+  display:flex;align-items:center;padding:0 40px;gap:16px;
+}
+.nav-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,rgba(58,184,245,.15),rgba(0,232,200,.1)) padding-box,
+             linear-gradient(135deg,var(--ocean),var(--biolum)) border-box;
+  border:1px solid transparent;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  filter:drop-shadow(0 0 8px rgba(58,184,245,.55));flex-shrink:0;
+}
+.nav-title{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--ocean);letter-spacing:.07em;text-transform:uppercase;}
+.nav-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);letter-spacing:.05em;margin-left:4px;}
+.nav-right{margin-left:auto;display:flex;gap:10px;align-items:center;}
+.nav-link{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);
+  text-decoration:none;padding:5px 12px;border-radius:20px;
+  border:1px solid var(--bdr);transition:color .2s,border-color .2s,background .2s;
+}
+.nav-link:hover{color:var(--ocean);border-color:var(--bdrm);background:rgba(58,184,245,.06);}
+
+/* PAGE */
+.page{position:relative;z-index:1;min-height:100vh;padding:100px 40px 80px;}
+.inner{max-width:680px;margin:0 auto;}
+
+/* HERO */
+.hero{text-align:center;margin-bottom:52px;}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:5px 14px;border-radius:20px;
+  background:rgba(58,184,245,.07);border:1px solid var(--bdrm);
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:22px;
+}
+.hero-title{
+  font-family:'Outfit',sans-serif;font-size:clamp(28px,5vw,52px);
+  font-weight:900;line-height:1.05;letter-spacing:-.03em;
+  background:linear-gradient(135deg,var(--t1) 30%,var(--ocean) 65%,var(--biolum) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:14px;
+}
+.hero-sub{font-size:14px;color:var(--t2);line-height:1.7;}
+.h-rule{width:80px;height:1px;margin:24px auto 0;background:linear-gradient(90deg,transparent,var(--ocean),transparent);}
+
+/* PROGRESS */
+.progress-wrap{margin-bottom:40px;}
+.progress-label{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);
+}
+.progress-bar{height:3px;background:rgba(58,184,245,.1);border-radius:2px;overflow:hidden;}
+.progress-fill{
+  height:100%;width:0%;border-radius:2px;
+  background:linear-gradient(90deg,var(--ocean),var(--biolum));
+  transition:width .4s cubic-bezier(.22,.61,.36,1);
+}
+
+/* Q BLOCK */
+.q-block{
+  background:linear-gradient(160deg,var(--c2),var(--c1));
+  border:1px solid var(--bdrm);border-radius:18px;
+  padding:28px 28px 24px;margin-bottom:18px;
+  transition:border-color .2s,box-shadow .2s;
+}
+.q-block.answered{border-color:rgba(0,232,200,.25);box-shadow:0 0 0 1px rgba(0,232,200,.06);}
+.q-block.error{border-color:rgba(248,114,114,.4);animation:shake .3s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+
+.q-num{
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:.1em;color:var(--ocean);opacity:.65;margin-bottom:8px;
+}
+.q-text{
+  font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;
+  color:var(--t1);letter-spacing:-.01em;margin-bottom:20px;line-height:1.4;
+}
+.q-req{
+  display:inline-block;font-size:10px;color:var(--coral);
+  background:rgba(248,114,114,.1);border:1px solid rgba(248,114,114,.18);
+  border-radius:10px;padding:1px 7px;margin-left:8px;vertical-align:middle;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.04em;
+}
+
+/* OPTIONS */
+.opts{display:flex;flex-direction:column;gap:9px;}
+.opts.col2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+
+.opt{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:11px;
+  background:rgba(255,255,255,.025);border:1px solid var(--bdr);
+  cursor:pointer;transition:background .15s,border-color .15s;
+  user-select:none;
+}
+.opt:hover{background:rgba(58,184,245,.06);border-color:var(--bdrm);}
+.opt.sel{background:rgba(0,232,200,.07);border-color:rgba(0,232,200,.28);}
+
+.opt-radio{
+  width:17px;height:17px;border-radius:50%;flex-shrink:0;
+  border:2px solid var(--bdrm);
+  position:relative;transition:border-color .15s;
+}
+.opt-radio::after{
+  content:'';position:absolute;inset:3px;border-radius:50%;
+  background:transparent;transition:background .15s;
+}
+.opt.sel .opt-radio{border-color:var(--biolum);}
+.opt.sel .opt-radio::after{background:var(--biolum);}
+
+.opt-body{display:flex;align-items:center;gap:9px;flex:1;}
+.opt-em{font-size:17px;line-height:1;}
+.opt-txt{font-size:13px;color:var(--t2);transition:color .15s;}
+.opt.sel .opt-txt{color:var(--t1);}
+
+/* SUBMIT */
+.submit-area{margin-top:36px;text-align:center;}
+.btn-submit{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:14px 44px;border-radius:50px;border:none;cursor:pointer;
+  font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;
+  background:linear-gradient(135deg,var(--ocean),var(--biolum));
+  color:#020912;
+  box-shadow:0 4px 24px rgba(58,184,245,.28);
+  transition:transform .2s,box-shadow .2s,opacity .2s;
+}
+.btn-submit:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px rgba(58,184,245,.42);}
+.btn-submit:disabled{opacity:.38;cursor:not-allowed;}
+.submit-hint{margin-top:11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);}
+.hint-cnt{transition:color .2s;}
+
+/* DONE SCREEN */
+.done{display:none;text-align:center;padding:60px 20px;animation:fade-up .5s cubic-bezier(.22,.61,.36,1) both;}
+@keyframes fade-up{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.done-icon{font-size:64px;margin-bottom:24px;filter:drop-shadow(0 0 18px rgba(0,232,200,.45));}
+.done-title{
+  font-family:'Outfit',sans-serif;font-size:36px;font-weight:900;letter-spacing:-.03em;
+  background:linear-gradient(135deg,var(--t1),var(--biolum));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:12px;
+}
+.done-sub{font-size:15px;color:var(--t2);line-height:1.7;margin-bottom:36px;}
+.btn-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.btn-sec{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border-radius:50px;
+  background:transparent;border:1px solid var(--bdrm);
+  color:var(--t2);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;text-decoration:none;transition:background .2s,color .2s,border-color .2s;
+}
+.btn-sec:hover{background:rgba(58,184,245,.07);color:var(--ocean);border-color:var(--bdrh);}
+.btn-pri{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border-radius:50px;border:none;cursor:pointer;
+  font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;
+  background:linear-gradient(135deg,var(--ocean),var(--biolum));
+  color:#020912;text-decoration:none;
+  box-shadow:0 4px 20px rgba(58,184,245,.28);
+  transition:transform .2s,box-shadow .2s;
+}
+.btn-pri:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(58,184,245,.42);}
+
+/* FOOTER */
+.footer{
+  text-align:center;margin-top:60px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);
+  display:flex;flex-direction:column;gap:6px;align-items:center;
+}
+.footer-line{width:60px;height:1px;background:linear-gradient(90deg,transparent,var(--bdrm),transparent);margin-bottom:8px;}
+
+@media(max-width:580px){
+  nav{padding:0 20px;}
+  .page{padding:80px 20px 60px;}
+  .opts.col2{grid-template-columns:1fr;}
+  .q-block{padding:20px 18px;}
+  .q-text{font-size:15px;}
+}
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav>
+  <div class="nav-icon">🌊</div>
+  <div>
+    <div class="nav-title">Aqua Survival</div>
+    <div class="nav-sub">SURVEY</div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-link" href="AS_GameSelect.html">← 게임 선택</a>
+    <a class="nav-link" href="AS_Dashboard.html">대시보드 →</a>
+  </div>
+</nav>
+
+<div class="page">
+<div class="inner">
+
+  <div class="hero">
+    <div class="hero-eyebrow">📋 &nbsp;PLAYER SURVEY</div>
+    <h1 class="hero-title">게임 경험을<br>알려주세요</h1>
+    <p class="hero-sub">여러분의 피드백이 더 나은 게임을 만듭니다.<br>약 1분이면 완료됩니다.</p>
+    <div class="h-rule"></div>
+  </div>
+
+  <!-- FORM -->
+  <div id="form-area">
+
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>진행률</span>
+        <span id="prog-text">0 / 6 완료</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+    </div>
+
+    <!-- Q1 -->
+    <div class="q-block" id="b1">
+      <div class="q-num">Q · 01</div>
+      <div class="q-text">오늘 플레이한 게임은? <span class="q-req">필수</span></div>
+      <div class="opts col2">
+        <div class="opt" data-q="1" data-v="살려주세요">
+          <div class="opt-radio"></div>
+          <div class="opt-body"><span class="opt-em">🆘</span><span class="opt-txt">살려주세요</span></div>
+        </div>
+        <div class="opt" data-q="1" data-v="심해의 습격">
+          <div class="opt-radio"></div>
+          <div class="opt-body"><span class="opt-em">🦑</span><span class="opt-txt">심해의 습격</span></div>
+        </div>
+        <div class="opt" data-q="1" data-v="데스티니 구출">
+          <div class="opt-radio"></div>
+          <div class="opt-body"><span class="opt-em">🚢</span><span class="opt-txt">데스티니 구출</span></div>
+        </div>
+        <div class="opt" data-q="1" data-v="최후의 방주">
+          <div class="opt-radio"></div>
+          <div class="opt-body"><span class="opt-em">⚓</span><span class="opt-txt">최후의 방주</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="q-block" id="b2">
+      <div class="q-num">Q · 02</div>
+      <div class="q-text">전반적인 만족도는? <span class="q-req">필수</span></div>
+      <div class="opts">
+        <div class="opt" data-q="2" data-v="매우 만족"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😍</span><span class="opt-txt">매우 만족 — 기대 이상이었다</span></div></div>
+        <div class="opt" data-q="2" data-v="만족"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😊</span><span class="opt-txt">만족 — 재미있었다</span></div></div>
+        <div class="opt" data-q="2" data-v="보통"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😐</span><span class="opt-txt">보통 — 그럭저럭이었다</span></div></div>
+        <div class="opt" data-q="2" data-v="불만족"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😕</span><span class="opt-txt">불만족 — 아쉬운 점이 있었다</span></div></div>
+        <div class="opt" data-q="2" data-v="매우 불만족"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😞</span><span class="opt-txt">매우 불만족 — 기대에 미치지 못했다</span></div></div>
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="q-block" id="b3">
+      <div class="q-num">Q · 03</div>
+      <div class="q-text">게임 난이도는 어땠나요? <span class="q-req">필수</span></div>
+      <div class="opts">
+        <div class="opt" data-q="3" data-v="너무 쉬웠다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😴</span><span class="opt-txt">너무 쉬웠다 — 도전감이 없었다</span></div></div>
+        <div class="opt" data-q="3" data-v="약간 쉬웠다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🙂</span><span class="opt-txt">약간 쉬웠다 — 조금 더 어려워도 좋겠다</span></div></div>
+        <div class="opt" data-q="3" data-v="적당했다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">👌</span><span class="opt-txt">적당했다 — 밸런스가 좋았다</span></div></div>
+        <div class="opt" data-q="3" data-v="약간 어려웠다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😅</span><span class="opt-txt">약간 어려웠다 — 도전적이었다</span></div></div>
+        <div class="opt" data-q="3" data-v="너무 어려웠다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😤</span><span class="opt-txt">너무 어려웠다 — 클리어하기 힘들었다</span></div></div>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q-block" id="b4">
+      <div class="q-num">Q · 04</div>
+      <div class="q-text">가장 좋았던 요소는? <span class="q-req">필수</span></div>
+      <div class="opts col2">
+        <div class="opt" data-q="4" data-v="스토리/설정"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">📖</span><span class="opt-txt">스토리 / 설정</span></div></div>
+        <div class="opt" data-q="4" data-v="그래픽/비주얼"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🎨</span><span class="opt-txt">그래픽 / 비주얼</span></div></div>
+        <div class="opt" data-q="4" data-v="조작감"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🎮</span><span class="opt-txt">조작감</span></div></div>
+        <div class="opt" data-q="4" data-v="사운드/효과음"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🔊</span><span class="opt-txt">사운드 / 효과음</span></div></div>
+        <div class="opt" data-q="4" data-v="게임플레이/긴장감"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">⚡</span><span class="opt-txt">게임플레이 / 긴장감</span></div></div>
+        <div class="opt" data-q="4" data-v="난이도 밸런스"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">⚖️</span><span class="opt-txt">난이도 밸런스</span></div></div>
+      </div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="q-block" id="b5">
+      <div class="q-num">Q · 05</div>
+      <div class="q-text">다시 플레이할 의향이 있나요? <span class="q-req">필수</span></div>
+      <div class="opts">
+        <div class="opt" data-q="5" data-v="꼭 다시 한다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🔥</span><span class="opt-txt">꼭 다시 한다 — 바로 또 하고 싶다</span></div></div>
+        <div class="opt" data-q="5" data-v="아마 다시 한다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">👍</span><span class="opt-txt">아마 다시 한다 — 기회가 되면</span></div></div>
+        <div class="opt" data-q="5" data-v="잘 모르겠다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🤔</span><span class="opt-txt">잘 모르겠다 — 아직 결정 못했다</span></div></div>
+        <div class="opt" data-q="5" data-v="다시 안 한다"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">👋</span><span class="opt-txt">다시 안 한다 — 한 번으로 충분하다</span></div></div>
+      </div>
+    </div>
+
+    <!-- Q6 -->
+    <div class="q-block" id="b6">
+      <div class="q-num">Q · 06</div>
+      <div class="q-text">주변에 추천하고 싶나요? <span class="q-req">필수</span></div>
+      <div class="opts">
+        <div class="opt" data-q="6" data-v="적극 추천"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">🌟</span><span class="opt-txt">적극 추천 — 꼭 해봐야 한다</span></div></div>
+        <div class="opt" data-q="6" data-v="추천"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">👌</span><span class="opt-txt">추천 — 해볼 만하다</span></div></div>
+        <div class="opt" data-q="6" data-v="보통"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">😐</span><span class="opt-txt">보통 — 취향에 따라 다를 것 같다</span></div></div>
+        <div class="opt" data-q="6" data-v="비추천"><div class="opt-radio"></div><div class="opt-body"><span class="opt-em">👎</span><span class="opt-txt">비추천 — 추천하지 않겠다</span></div></div>
+      </div>
+    </div>
+
+    <div class="submit-area">
+      <button class="btn-submit" id="btn-submit" disabled>설문 제출하기 &nbsp;→</button>
+      <div class="submit-hint">
+        <span id="hint-cnt" class="hint-cnt" style="color:var(--coral)">6개</span>의 필수 항목을 모두 선택해주세요
+      </div>
+    </div>
+
+  </div><!-- /form-area -->
+
+  <!-- DONE -->
+  <div class="done" id="done-area">
+    <div class="done-icon">🎉</div>
+    <div class="done-title">제출 완료!</div>
+    <p class="done-sub">소중한 의견 감사합니다.<br>여러분의 피드백이 더 좋은 Aqua Survival을 만듭니다.</p>
+    <div class="btn-row">
+      <a class="btn-sec" href="AS_GameSelect.html">← 게임 선택으로</a>
+      <a class="btn-pri" href="AS_Dashboard.html">결과 보기 →</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-line"></div>
+    <div>AQUA SURVIVAL · PLAYER SURVEY</div>
+    <div style="opacity:.6">© 2026 — 응답은 로컬에 저장됩니다</div>
+  </div>
+
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'as_survey_v1';
+const TOTAL = 6;
+const ans = {};
+
+/* option click */
+document.querySelectorAll('.opt').forEach(el => {
+  el.addEventListener('click', () => {
+    const q = el.dataset.q;
+    const v = el.dataset.v;
+    document.querySelectorAll(`.opt[data-q="${q}"]`).forEach(o => o.classList.remove('sel'));
+    el.classList.add('sel');
+    ans[q] = v;
+    const block = document.getElementById('b' + q);
+    block.classList.remove('error');
+    block.classList.add('answered');
+    updateProgress();
+  });
+});
+
+function updateProgress() {
+  const done = Object.keys(ans).length;
+  document.getElementById('prog-fill').style.width = (done / TOTAL * 100) + '%';
+  document.getElementById('prog-text').textContent = done + ' / ' + TOTAL + ' 완료';
+  const btn = document.getElementById('btn-submit');
+  const cnt = document.getElementById('hint-cnt');
+  if (done === TOTAL) {
+    btn.disabled = false;
+    cnt.textContent = '모두 완료!';
+    cnt.style.color = 'var(--biolum)';
+  } else {
+    btn.disabled = true;
+    cnt.textContent = (TOTAL - done) + '개';
+    cnt.style.color = 'var(--coral)';
+  }
+}
+
+/* submit */
+document.getElementById('btn-submit').addEventListener('click', () => {
+  for (let i = 1; i <= TOTAL; i++) {
+    if (!ans[i]) {
+      const b = document.getElementById('b' + i);
+      b.classList.add('error');
+      b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+  const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  list.push({
+    id: Date.now(),
+    date: new Date().toISOString().slice(0, 10),
+    q1: ans[1], q2: ans[2], q3: ans[3],
+    q4: ans[4], q5: ans[5], q6: ans[6]
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('done-area').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+/* particles */
+(function(){
+  const c = document.getElementById('particles'), x = c.getContext('2d');
+  let W, H, pts = [];
+  const cols = ['rgba(58,184,245,','rgba(0,232,200,','rgba(124,143,255,'];
+  function resize(){ W = c.width = innerWidth; H = c.height = innerHeight; }
+  function init(){ pts = []; for(let i=0;i<45;i++) pts.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.4,vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,a:Math.random()*.45+.12,c:cols[Math.floor(Math.random()*3)],f:Math.random()*Math.PI*2,fs:Math.random()*.02+.005}); }
+  function draw(){ x.clearRect(0,0,W,H); pts.forEach(p=>{ p.x+=p.vx;p.y+=p.vy;p.f+=p.fs; if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0; const a=p.a+Math.sin(p.f)*.1; x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=p.c+a.toFixed(2)+')';x.fill(); }); requestAnimationFrame(draw); }
+  window.addEventListener('resize',()=>{resize();init();});
+  resize();init();draw();
+})();
+</script>
+</body>
+</html>
