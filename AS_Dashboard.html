@@ -6,6 +6,20 @@
 <title>Aqua Survival — 설문 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDN4h0_YUcJna3OD-wu71MmCbcaMsVH_pg",
+    authDomain: "asmini-8f616.firebaseapp.com",
+    projectId: "asmini-8f616",
+    storageBucket: "asmini-8f616.firebasestorage.app",
+    messagingSenderId: "821877346570",
+    appId: "1:821877346570:web:3a3e62d68df84f3af1aaf3"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
 <style>
 :root {
   --c0:#020912;--c1:#04101f;--c2:#07182e;--c3:#0a1f3a;
@@ -238,15 +252,13 @@ tr:hover td{background:rgba(58,184,245,.03);}
   <div class="footer">
     <div class="footer-line"></div>
     <div>AQUA SURVIVAL · SURVEY DASHBOARD</div>
-    <div style="opacity:.6">© 2026 — 데이터는 브라우저 로컬에 저장됩니다</div>
+    <div style="opacity:.6">© 2026 — 데이터는 Firebase 클라우드에 저장됩니다</div>
   </div>
 
 </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'as_survey_v1';
-
 const Q_META = [
   { key:'q1', label:'플레이한 게임', num:'Q·01' },
   { key:'q2', label:'전반적인 만족도', num:'Q·02' },
@@ -277,8 +289,12 @@ let currentFilter = 'all';
 let allData = [];
 
 function load() {
-  allData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  render();
+  db.collection('surveys').orderBy('id').onSnapshot(snapshot => {
+    allData = snapshot.docs.map(doc => ({ ...doc.data(), docId: doc.id }));
+    render();
+  }, err => {
+    console.error('데이터 로드 오류:', err);
+  });
 }
 
 function filtered() {
@@ -432,10 +448,12 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 /* clear */
-document.getElementById('btn-clear').addEventListener('click', () => {
+document.getElementById('btn-clear').addEventListener('click', async () => {
   if (confirm('모든 응답 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
-    localStorage.removeItem(STORAGE_KEY);
-    load();
+    const snapshot = await db.collection('surveys').get();
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   }
 });
 
